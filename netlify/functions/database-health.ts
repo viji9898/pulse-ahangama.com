@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { sql } from "drizzle-orm";
-import { db } from "./_shared/db";
+import { db } from "./_shared/db.js";
 
 export default async () => {
   try {

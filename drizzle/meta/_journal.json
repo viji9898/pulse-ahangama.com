@@ -8,6 +8,13 @@
       "when": 1784035030303,
       "tag": "0000_smiling_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784036896277,
+      "tag": "0001_majestic_vulture",
+      "breakpoints": true
     }
   ]
 }

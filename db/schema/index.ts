@@ -154,3 +154,24 @@ export const messages = pgTable(
     index("messages_campaign_idx").on(table.campaignId),
   ],
 );
+
+export const whatsappWebhookEvents = pgTable(
+  "whatsapp_webhook_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventType: varchar("event_type", { length: 100 }).notNull(),
+    providerMessageId: varchar("provider_message_id", { length: 255 }),
+    phoneNumberId: varchar("phone_number_id", { length: 100 }),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    processed: boolean("processed").default(false).notNull(),
+    processingError: text("processing_error"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("whatsapp_webhook_provider_message_idx").on(table.providerMessageId),
+    index("whatsapp_webhook_received_idx").on(table.receivedAt),
+  ],
+);
