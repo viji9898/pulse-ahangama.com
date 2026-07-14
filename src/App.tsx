@@ -7,10 +7,14 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { Card, Col, Layout, Menu, Row, Statistic, Typography } from "antd";
+import { useState } from "react";
+import InboxPage from "./features/inbox/InboxPage";
 
 const { Header, Sider, Content } = Layout;
 
 export default function App() {
+  const [selectedPage, setSelectedPage] = useState("dashboard");
+
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider breakpoint="lg" collapsedWidth="0">
@@ -28,7 +32,8 @@ export default function App() {
         <Menu
           theme="dark"
           mode="inline"
-          defaultSelectedKeys={["dashboard"]}
+          selectedKeys={[selectedPage]}
+          onClick={({ key }) => setSelectedPage(key)}
           items={[
             {
               key: "dashboard",
@@ -79,38 +84,44 @@ export default function App() {
         </Header>
 
         <Content style={{ margin: 24 }}>
-          <Typography.Title level={2}>Dashboard</Typography.Title>
+          {selectedPage === "inbox" ? (
+            <InboxPage />
+          ) : (
+            <>
+              <Typography.Title level={2}>Dashboard</Typography.Title>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic title="Active guests" value={0} />
-              </Card>
-            </Col>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic title="Active guests" value={0} />
+                  </Card>
+                </Col>
 
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic title="WhatsApps today" value={0} />
-              </Card>
-            </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic title="WhatsApps today" value={0} />
+                  </Card>
+                </Col>
 
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic title="Unread conversations" value={0} />
-              </Card>
-            </Col>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic title="Unread conversations" value={0} />
+                  </Card>
+                </Col>
 
-            <Col xs={24} sm={12} lg={6}>
-              <Card>
-                <Statistic
-                  title="Campaign revenue"
-                  value={0}
-                  prefix="$"
-                  precision={2}
-                />
-              </Card>
-            </Col>
-          </Row>
+                <Col xs={24} sm={12} lg={6}>
+                  <Card>
+                    <Statistic
+                      title="Campaign revenue"
+                      value={0}
+                      prefix="$"
+                      precision={2}
+                    />
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
         </Content>
       </Layout>
     </Layout>

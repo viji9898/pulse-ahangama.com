@@ -1,11 +1,5 @@
 import { env } from "./env.js";
 
-type SendTemplateInput = {
-  to: string;
-  templateName?: string;
-  languageCode?: string;
-};
-
 type MetaMessageResponse = {
   messaging_product?: string;
   contacts?: Array<{
@@ -35,11 +29,9 @@ function normalizePhoneNumber(phoneNumber: string): string {
   return normalized;
 }
 
-export async function sendTemplateMessage({
-  to,
-  templateName = "hello_world",
-  languageCode = "en_US",
-}: SendTemplateInput): Promise<MetaMessageResponse> {
+async function sendMessage(
+  payload: Record<string, unknown>,
+): Promise<MetaMessageResponse> {
   const endpoint =
     `https://graph.facebook.com/` +
     `${env.metaGraphApiVersion}/` +
@@ -51,24 +43,13 @@ export async function sendTemplateMessage({
       Authorization: `Bearer ${env.whatsappAccessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: normalizePhoneNumber(to),
-      type: "template",
-      template: {
-        name: templateName,
-        language: {
-          code: languageCode,
-        },
-      },
-    }),
+    body: JSON.stringify(payload),
   });
 
   const result = (await response.json()) as MetaMessageResponse;
 
   if (!response.ok) {
-    console.error("Meta send-message request failed", result);
+    console.error("Meta message request failed", result);
 
     throw new Error(
       result.error?.message ?? `Meta returned HTTP ${response.status}`,
@@ -76,4 +57,39 @@ export async function sendTemplateMessage({
   }
 
   return result;
+}
+
+export async function sendTextMessage(input: {
+  to: string;
+  body: string;
+}): Promise<MetaMessageResponse> {
+  return sendMessage({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizePhoneNumber(input.to),
+    type: "text",
+    text: {
+      preview_url: false,
+      body: input.body,
+    },
+  });
+}
+
+export async function sendTemplateMessage(input: {
+  to: string;
+  templateName?: string;
+  languageCode?: string;
+}): Promise<MetaMessageResponse> {
+  return sendMessage({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizePhoneNumber(input.to),
+    type: "template",
+    template: {
+      name: input.templateName ?? "hello_world",
+      language: {
+        code: input.languageCode ?? "en_US",
+      },
+    },
+  });
 }

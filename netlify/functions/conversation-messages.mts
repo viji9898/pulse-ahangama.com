@@ -1,6 +1,6 @@
 import type { Config } from "@netlify/functions";
 import { asc, eq } from "drizzle-orm";
-import { messages } from "../../db/schema/index.js";
+import { conversations, guests, messages } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 
 export default async (request: Request): Promise<Response> => {
@@ -28,6 +28,33 @@ export default async (request: Request): Promise<Response> => {
   }
 
   try {
+    const [conversation] = await db
+      .select({
+        id: conversations.id,
+        firstName: guests.firstName,
+        lastName: guests.lastName,
+        phoneNumber: guests.phoneNumber,
+        unreadCount: conversations.unreadCount,
+        lastMessagePreview: conversations.lastMessagePreview,
+        lastMessageAt: conversations.lastMessageAt,
+        serviceWindowEndsAt: conversations.serviceWindowEndsAt,
+      })
+      .from(conversations)
+      .innerJoin(guests, eq(conversations.guestId, guests.id))
+      .where(eq(conversations.id, conversationId))
+      .limit(1);
+
+    if (!conversation) {
+      return Response.json(
+        {
+          error: "Conversation not found",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
     const results = await db
       .select()
       .from(messages)
@@ -35,6 +62,7 @@ export default async (request: Request): Promise<Response> => {
       .orderBy(asc(messages.createdAt));
 
     return Response.json({
+      conversation,
       messages: results,
     });
   } catch (error) {
