@@ -1,0 +1,473 @@
+import {
+  Alert,
+  Button,
+  DatePicker,
+  Descriptions,
+  Divider,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  message,
+  Select,
+  Space,
+  Statistic,
+  Switch,
+  Table,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import dayjs from "dayjs";
+import { useEffect, useMemo, useState } from "react";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => Promise<void> | void;
+};
+
+type RecipientPreview = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  phoneNumber: string | null;
+  accommodationName: string | null;
+};
+
+type PreviewResponse = {
+  recipientCount: number;
+  estimatedCostPerMessageUsd: number;
+  estimatedMetaCostUsd: number;
+  venuePriceUsd: number;
+  estimatedGrossProfitUsd: number;
+  estimatedMarginPercent: number | null;
+  recipients: RecipientPreview[];
+};
+
+type CampaignFormValues = {
+  name: string;
+  templateName: string;
+  templateLanguage: string;
+  interests?: string[];
+  accommodationName?: string;
+  currentlyStaying: boolean;
+  excludeRecentlyMessagedHours?: number;
+  estimatedCostPerMessageUsd: number;
+  venuePriceUsd: number;
+  scheduledAt?: dayjs.Dayjs;
+};
+
+const interestOptions = [
+  "Cafés & Coffee",
+  "Food & Dining",
+  "Wellness & Yoga",
+  "Surfing",
+  "Nature & Wildlife",
+  "Nightlife",
+  "Shopping",
+  "Family",
+].map((value) => ({
+  label: value,
+  value,
+}));
+
+export default function CampaignComposerDrawer({
+  open,
+  onClose,
+  onCreated,
+}: Props) {
+  const [form] = Form.useForm<CampaignFormValues>();
+
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+
+  const [previewing, setPreviewing] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (open) {
+        form.setFieldsValue({
+          templateLanguage: "en_US",
+          currentlyStaying: true,
+          excludeRecentlyMessagedHours: 24,
+          estimatedCostPerMessageUsd: 0.02,
+          venuePriceUsd: 75,
+        });
+      } else {
+        form.resetFields();
+        setPreview(null);
+      }
+    });
+  }, [open, form]);
+
+  function buildAudience(values: CampaignFormValues) {
+    return {
+      interests: values.interests,
+      accommodationName: values.accommodationName,
+      currentlyStaying: values.currentlyStaying,
+      whatsappOptIn: true,
+      excludeRecentlyMessagedHours: values.excludeRecentlyMessagedHours,
+    };
+  }
+
+  async function previewAudience() {
+    const values = await form.validateFields([
+      "interests",
+      "accommodationName",
+      "currentlyStaying",
+      "excludeRecentlyMessagedHours",
+      "estimatedCostPerMessageUsd",
+      "venuePriceUsd",
+    ]);
+
+    setPreviewing(true);
+
+    try {
+      const response = await fetch("/api/campaigns/audience-preview", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audience: buildAudience(values as CampaignFormValues),
+          estimatedCostPerMessageUsd: values.estimatedCostPerMessageUsd,
+          venuePriceUsd: values.venuePriceUsd,
+        }),
+      });
+
+      const result = (await response.json()) as PreviewResponse & {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to preview audience");
+      }
+
+      setPreview(result);
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "Unable to preview audience",
+      );
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function createCampaign() {
+    const values = await form.validateFields();
+
+    if (!preview) {
+      message.warning("Preview the audience before saving the campaign.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/campaigns/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: values.name,
+          templateName: values.templateName,
+          templateLanguage: values.templateLanguage,
+          audience: buildAudience(values),
+          estimatedCostPerMessageUsd: values.estimatedCostPerMessageUsd,
+          venuePriceUsd: values.venuePriceUsd,
+          scheduledAt: values.scheduledAt?.toISOString() ?? null,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to create campaign");
+      }
+
+      message.success("Campaign created");
+      await onCreated();
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "Unable to create campaign",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const previewColumns: ColumnsType<RecipientPreview> = useMemo(
+    () => [
+      {
+        title: "Guest",
+        key: "guest",
+        render: (_, guest) =>
+          [guest.firstName, guest.lastName].filter(Boolean).join(" ") ||
+          "WhatsApp guest",
+      },
+      {
+        title: "Phone",
+        dataIndex: "phoneNumber",
+      },
+      {
+        title: "Stay",
+        dataIndex: "accommodationName",
+        render: (value: string | null) => value || "—",
+      },
+    ],
+    [],
+  );
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      width={720}
+      title="Create WhatsApp campaign"
+      extra={
+        <Space>
+          <Button onClick={onClose}>Cancel</Button>
+
+          <Button
+            type="primary"
+            loading={saving}
+            onClick={() => void createCampaign()}
+          >
+            Save campaign
+          </Button>
+        </Space>
+      }
+    >
+      <Alert
+        type="info"
+        showIcon
+        message="This creates a draft recipient snapshot. It does not send messages yet."
+        style={{ marginBottom: 24 }}
+      />
+
+      <Form form={form} layout="vertical">
+        <Typography.Title level={4}>Campaign</Typography.Title>
+
+        <Form.Item
+          name="name"
+          label="Campaign name"
+          rules={[
+            {
+              required: true,
+              message: "Enter a campaign name",
+            },
+          ]}
+        >
+          <Input placeholder="Kaffi breakfast feature — 16 July" />
+        </Form.Item>
+
+        <Form.Item
+          name="templateName"
+          label="Approved WhatsApp template"
+          rules={[
+            {
+              required: true,
+              message: "Enter the approved template name",
+            },
+          ]}
+        >
+          <Input placeholder="venue_breakfast_feature" />
+        </Form.Item>
+
+        <Form.Item
+          name="templateLanguage"
+          label="Template language"
+          rules={[
+            {
+              required: true,
+            },
+          ]}
+        >
+          <Select
+            options={[
+              {
+                label: "English (US)",
+                value: "en_US",
+              },
+              {
+                label: "English (UK)",
+                value: "en_GB",
+              },
+            ]}
+          />
+        </Form.Item>
+
+        <Divider />
+
+        <Typography.Title level={4}>Audience</Typography.Title>
+
+        <Form.Item name="interests" label="Interests">
+          <Select
+            mode="multiple"
+            allowClear
+            options={interestOptions}
+            placeholder="Select interests"
+          />
+        </Form.Item>
+
+        <Form.Item name="accommodationName" label="Accommodation contains">
+          <Input placeholder="Lighthouse" />
+        </Form.Item>
+
+        <Form.Item
+          name="currentlyStaying"
+          label="Currently staying in Ahangama"
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
+
+        <Form.Item
+          name="excludeRecentlyMessagedHours"
+          label="Exclude guests messaged within"
+        >
+          <InputNumber
+            min={0}
+            max={720}
+            addonAfter="hours"
+            style={{ width: 220 }}
+          />
+        </Form.Item>
+
+        <Divider />
+
+        <Typography.Title level={4}>Commercials</Typography.Title>
+
+        <Form.Item
+          name="estimatedCostPerMessageUsd"
+          label="Estimated Meta cost per recipient"
+          rules={[
+            {
+              required: true,
+            },
+          ]}
+        >
+          <InputNumber
+            min={0}
+            step={0.001}
+            precision={4}
+            prefix="$"
+            style={{ width: 220 }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="venuePriceUsd"
+          label="Venue campaign price"
+          rules={[
+            {
+              required: true,
+            },
+          ]}
+        >
+          <InputNumber
+            min={0}
+            step={5}
+            precision={2}
+            prefix="$"
+            style={{ width: 220 }}
+          />
+        </Form.Item>
+
+        <Form.Item name="scheduledAt" label="Schedule">
+          <DatePicker
+            showTime
+            style={{ width: "100%" }}
+            disabledDate={(date) => date.isBefore(dayjs().startOf("day"))}
+          />
+        </Form.Item>
+
+        <Button
+          block
+          loading={previewing}
+          onClick={() => void previewAudience()}
+        >
+          Preview audience
+        </Button>
+      </Form>
+
+      {preview && (
+        <>
+          <Divider />
+
+          <Typography.Title level={4}>Campaign preview</Typography.Title>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 16,
+              marginBottom: 20,
+            }}
+          >
+            <Statistic title="Recipients" value={preview.recipientCount} />
+
+            <Statistic
+              title="Estimated Meta cost"
+              value={preview.estimatedMetaCostUsd}
+              precision={2}
+              prefix="$"
+            />
+
+            <Statistic
+              title="Venue price"
+              value={preview.venuePriceUsd}
+              precision={2}
+              prefix="$"
+            />
+
+            <Statistic
+              title="Estimated gross profit"
+              value={preview.estimatedGrossProfitUsd}
+              precision={2}
+              prefix="$"
+              suffix={
+                preview.estimatedMarginPercent !== null
+                  ? ` (${preview.estimatedMarginPercent}%)`
+                  : undefined
+              }
+            />
+          </div>
+
+          <Descriptions
+            size="small"
+            column={1}
+            bordered
+            style={{ marginBottom: 20 }}
+          >
+            <Descriptions.Item label="Message type">
+              Approved WhatsApp template
+            </Descriptions.Item>
+
+            <Descriptions.Item label="Opt-out suppression">
+              Enabled
+            </Descriptions.Item>
+
+            <Descriptions.Item label="Duplicate prevention">
+              One recipient per campaign
+            </Descriptions.Item>
+          </Descriptions>
+
+          <Table
+            rowKey="id"
+            size="small"
+            columns={previewColumns}
+            dataSource={preview.recipients}
+            pagination={{
+              pageSize: 10,
+            }}
+          />
+        </>
+      )}
+    </Drawer>
+  );
+}

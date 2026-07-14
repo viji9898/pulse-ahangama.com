@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   text,
@@ -78,24 +79,88 @@ export const venues = pgTable("venues", {
     .notNull(),
 });
 
-export const campaigns = pgTable("campaigns", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: varchar("name", { length: 200 }).notNull(),
-  channel: messageChannelEnum("channel").notNull(),
-  status: campaignStatusEnum("status").default("draft").notNull(),
-  venueId: uuid("venue_id").references(() => venues.id),
-  templateName: varchar("template_name", { length: 200 }),
-  audienceDefinition: jsonb("audience_definition")
-    .$type<Record<string, unknown>>()
-    .default({}),
-  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    name: varchar("name", { length: 200 }).notNull(),
+    channel: messageChannelEnum("channel").notNull(),
+    status: campaignStatusEnum("status").default("draft").notNull(),
+
+    venueId: uuid("venue_id").references(() => venues.id),
+
+    templateName: varchar("template_name", {
+      length: 200,
+    }),
+
+    templateLanguage: varchar("template_language", {
+      length: 20,
+    }).default("en_US"),
+
+    audienceDefinition: jsonb("audience_definition")
+      .$type<{
+        search?: string;
+        interests?: string[];
+        accommodationName?: string;
+        currentlyStaying?: boolean;
+        whatsappOptIn?: boolean;
+        excludeRecentlyMessagedHours?: number;
+      }>()
+      .default({}),
+
+    recipientCount: integer("recipient_count").default(0).notNull(),
+
+    estimatedMetaCostUsd: numeric("estimated_meta_cost_usd", {
+      precision: 12,
+      scale: 2,
+    })
+      .default("0")
+      .notNull(),
+
+    venuePriceUsd: numeric("venue_price_usd", {
+      precision: 12,
+      scale: 2,
+    })
+      .default("0")
+      .notNull(),
+
+    sentCount: integer("sent_count").default(0).notNull(),
+    deliveredCount: integer("delivered_count").default(0).notNull(),
+    readCount: integer("read_count").default(0).notNull(),
+    failedCount: integer("failed_count").default(0).notNull(),
+    replyCount: integer("reply_count").default(0).notNull(),
+
+    scheduledAt: timestamp("scheduled_at", {
+      withTimezone: true,
+    }),
+
+    startedAt: timestamp("started_at", {
+      withTimezone: true,
+    }),
+
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+    }),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("campaigns_status_idx").on(table.status),
+    index("campaigns_scheduled_at_idx").on(table.scheduledAt),
+    index("campaigns_venue_idx").on(table.venueId),
+  ],
+);
 
 export const conversations = pgTable(
   "conversations",
@@ -254,4 +319,93 @@ export const guestNotes = pgTable(
       .notNull(),
   },
   (table) => [index("guest_notes_guest_idx").on(table.guestId)],
+);
+
+export const campaignRecipientStatusEnum = pgEnum("campaign_recipient_status", [
+  "pending",
+  "queued",
+  "sent",
+  "delivered",
+  "read",
+  "failed",
+  "skipped",
+]);
+
+export const campaignRecipients = pgTable(
+  "campaign_recipients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    campaignId: uuid("campaign_id")
+      .references(() => campaigns.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    guestId: uuid("guest_id")
+      .references(() => guests.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    phoneNumber: varchar("phone_number", {
+      length: 40,
+    }).notNull(),
+
+    status: campaignRecipientStatusEnum("status").default("pending").notNull(),
+
+    providerMessageId: varchar("provider_message_id", {
+      length: 255,
+    }),
+
+    templateVariables: jsonb("template_variables")
+      .$type<Record<string, string>>()
+      .default({}),
+
+    estimatedCostUsd: numeric("estimated_cost_usd", {
+      precision: 12,
+      scale: 4,
+    })
+      .default("0")
+      .notNull(),
+
+    errorCode: varchar("error_code", {
+      length: 100,
+    }),
+
+    errorMessage: text("error_message"),
+
+    sentAt: timestamp("sent_at", {
+      withTimezone: true,
+    }),
+
+    deliveredAt: timestamp("delivered_at", {
+      withTimezone: true,
+    }),
+
+    readAt: timestamp("read_at", {
+      withTimezone: true,
+    }),
+
+    failedAt: timestamp("failed_at", {
+      withTimezone: true,
+    }),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("campaign_recipient_unique").on(
+      table.campaignId,
+      table.guestId,
+    ),
+    index("campaign_recipients_campaign_idx").on(table.campaignId),
+    index("campaign_recipients_status_idx").on(table.status),
+    uniqueIndex("campaign_recipient_provider_message_unique").on(
+      table.providerMessageId,
+    ),
+  ],
 );

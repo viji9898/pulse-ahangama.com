@@ -8,6 +8,7 @@ import {
 } from "@ant-design/icons";
 import { Card, Col, Layout, Menu, Row, Statistic, Typography } from "antd";
 import { useState } from "react";
+import CampaignsPage from "./features/campaigns/CampaignsPage";
 import GuestProfileDrawer from "./features/guests/GuestProfileDrawer";
 import GuestsPage from "./features/guests/GuestsPage";
 import InboxPage from "./features/inbox/InboxPage";
@@ -95,7 +96,11 @@ export default function App() {
             <GuestsPage onOpenGuest={(guestId) => setSelectedGuestId(guestId)} />
           )}
 
-          {activePage !== "inbox" && activePage !== "guests" && (
+          {activePage === "campaigns" && <CampaignsPage />}
+
+          {activePage !== "inbox" &&
+            activePage !== "guests" &&
+            activePage !== "campaigns" && (
             <>
               <Typography.Title level={2}>Dashboard</Typography.Title>
 
@@ -130,7 +135,7 @@ export default function App() {
                 </Col>
               </Row>
             </>
-          )}
+            )}
 
           <GuestProfileDrawer
             guestId={selectedGuestId}
