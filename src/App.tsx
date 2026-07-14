@@ -8,12 +8,48 @@ import {
 } from "@ant-design/icons";
 import { Card, Col, Layout, Menu, Row, Statistic, Typography } from "antd";
 import { useState } from "react";
+import GuestProfileDrawer from "./features/guests/GuestProfileDrawer";
+import GuestsPage from "./features/guests/GuestsPage";
 import InboxPage from "./features/inbox/InboxPage";
 
 const { Header, Sider, Content } = Layout;
 
+const menuItems = [
+  {
+    key: "dashboard",
+    icon: <DashboardOutlined />,
+    label: "Dashboard",
+  },
+  {
+    key: "guests",
+    icon: <TeamOutlined />,
+    label: "Guests",
+  },
+  {
+    key: "inbox",
+    icon: <MessageOutlined />,
+    label: "Inbox",
+  },
+  {
+    key: "campaigns",
+    icon: <NotificationOutlined />,
+    label: "Campaigns",
+  },
+  {
+    key: "venues",
+    icon: <ShopOutlined />,
+    label: "Venues",
+  },
+  {
+    key: "analytics",
+    icon: <BarChartOutlined />,
+    label: "Analytics",
+  },
+];
+
 export default function App() {
-  const [selectedPage, setSelectedPage] = useState("dashboard");
+  const [activePage, setActivePage] = useState("inbox");
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -32,40 +68,9 @@ export default function App() {
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[selectedPage]}
-          onClick={({ key }) => setSelectedPage(key)}
-          items={[
-            {
-              key: "dashboard",
-              icon: <DashboardOutlined />,
-              label: "Dashboard",
-            },
-            {
-              key: "guests",
-              icon: <TeamOutlined />,
-              label: "Guests",
-            },
-            {
-              key: "inbox",
-              icon: <MessageOutlined />,
-              label: "Inbox",
-            },
-            {
-              key: "campaigns",
-              icon: <NotificationOutlined />,
-              label: "Campaigns",
-            },
-            {
-              key: "venues",
-              icon: <ShopOutlined />,
-              label: "Venues",
-            },
-            {
-              key: "analytics",
-              icon: <BarChartOutlined />,
-              label: "Analytics",
-            },
-          ]}
+          selectedKeys={[activePage]}
+          onClick={({ key }) => setActivePage(key)}
+          items={menuItems}
         />
       </Sider>
 
@@ -84,9 +89,13 @@ export default function App() {
         </Header>
 
         <Content style={{ margin: 24 }}>
-          {selectedPage === "inbox" ? (
-            <InboxPage />
-          ) : (
+          {activePage === "inbox" && <InboxPage />}
+
+          {activePage === "guests" && (
+            <GuestsPage onOpenGuest={(guestId) => setSelectedGuestId(guestId)} />
+          )}
+
+          {activePage !== "inbox" && activePage !== "guests" && (
             <>
               <Typography.Title level={2}>Dashboard</Typography.Title>
 
@@ -122,6 +131,12 @@ export default function App() {
               </Row>
             </>
           )}
+
+          <GuestProfileDrawer
+            guestId={selectedGuestId}
+            open={Boolean(selectedGuestId)}
+            onClose={() => setSelectedGuestId(null)}
+          />
         </Content>
       </Layout>
     </Layout>

@@ -43,17 +43,12 @@ type ConversationDetail = {
 };
 
 export default function InboxPage() {
-  const [conversations, setConversations] = useState<
-    ConversationSummary[]
-  >([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ConversationDetail | null>(
-    null,
-  );
+  const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [reply, setReply] = useState("");
   const [loadingInbox, setLoadingInbox] = useState(true);
-  const [loadingConversation, setLoadingConversation] =
-    useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(false);
   const [sending, setSending] = useState(false);
   const [now] = useState(() => Date.now());
 
@@ -105,9 +100,7 @@ export default function InboxPage() {
       );
     } catch (error) {
       antMessage.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to load conversation",
+        error instanceof Error ? error.message : "Unable to load conversation",
       );
     } finally {
       setLoadingConversation(false);
@@ -156,15 +149,10 @@ export default function InboxPage() {
       }
 
       setReply("");
-      await Promise.all([
-        loadConversation(selectedId),
-        loadInbox(),
-      ]);
+      await Promise.all([loadConversation(selectedId), loadInbox()]);
     } catch (error) {
       antMessage.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to send reply",
+        error instanceof Error ? error.message : "Unable to send reply",
       );
     } finally {
       setSending(false);
@@ -215,17 +203,13 @@ export default function InboxPage() {
                   cursor: "pointer",
                   padding: "14px 20px",
                   background:
-                    selectedId === conversation.id
-                      ? "#f5f5f5"
-                      : "#fff",
+                    selectedId === conversation.id ? "#f5f5f5" : "#fff",
                 }}
               >
                 <List.Item.Meta
                   avatar={
                     <Badge count={conversation.unreadCount}>
-                      <Avatar>
-                        {name.charAt(0).toUpperCase()}
-                      </Avatar>
+                      <Avatar>{name.charAt(0).toUpperCase()}</Avatar>
                     </Badge>
                   }
                   title={name}
@@ -261,19 +245,14 @@ export default function InboxPage() {
             >
               <Space>
                 <Typography.Title level={4} style={{ margin: 0 }}>
-                  {[
-                    detail.conversation.firstName,
-                    detail.conversation.lastName,
-                  ]
+                  {[detail.conversation.firstName, detail.conversation.lastName]
                     .filter(Boolean)
-                    .join(" ") ||
-                    detail.conversation.phoneNumber}
+                    .join(" ") || detail.conversation.phoneNumber}
                 </Typography.Title>
 
                 {detail.conversation.serviceWindowEndsAt &&
-                new Date(
-                  detail.conversation.serviceWindowEndsAt,
-                ).getTime() > now ? (
+                new Date(detail.conversation.serviceWindowEndsAt).getTime() >
+                  now ? (
                   <Tag color="green">Reply window open</Tag>
                 ) : (
                   <Tag color="orange">Template required</Tag>
@@ -295,9 +274,7 @@ export default function InboxPage() {
                   style={{
                     display: "flex",
                     justifyContent:
-                      item.direction === "outbound"
-                        ? "flex-end"
-                        : "flex-start",
+                      item.direction === "outbound" ? "flex-end" : "flex-start",
                     marginBottom: 12,
                   }}
                 >
@@ -307,9 +284,7 @@ export default function InboxPage() {
                       padding: "10px 14px",
                       borderRadius: 12,
                       background:
-                        item.direction === "outbound"
-                          ? "#e6f4ff"
-                          : "#fff",
+                        item.direction === "outbound" ? "#e6f4ff" : "#fff",
                       border: "1px solid #f0f0f0",
                     }}
                   >

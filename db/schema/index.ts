@@ -191,3 +191,67 @@ export const whatsappWebhookEvents = pgTable(
     index("whatsapp_webhook_received_idx").on(table.receivedAt),
   ],
 );
+
+export const guestInterests = pgTable(
+  "guest_interests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    guestId: uuid("guest_id")
+      .references(() => guests.id, { onDelete: "cascade" })
+      .notNull(),
+    interest: varchar("interest", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("guest_interest_unique").on(table.guestId, table.interest),
+    index("guest_interests_guest_idx").on(table.guestId),
+  ],
+);
+
+export const guestStays = pgTable(
+  "guest_stays",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    guestId: uuid("guest_id")
+      .references(() => guests.id, { onDelete: "cascade" })
+      .notNull(),
+    accommodationName: varchar("accommodation_name", {
+      length: 200,
+    }),
+    arrivalDate: timestamp("arrival_date", {
+      withTimezone: true,
+    }),
+    departureDate: timestamp("departure_date", {
+      withTimezone: true,
+    }),
+    source: varchar("source", { length: 100 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("guest_stays_guest_idx").on(table.guestId),
+    index("guest_stays_dates_idx").on(table.arrivalDate, table.departureDate),
+  ],
+);
+
+export const guestNotes = pgTable(
+  "guest_notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    guestId: uuid("guest_id")
+      .references(() => guests.id, { onDelete: "cascade" })
+      .notNull(),
+    body: text("body").notNull(),
+    createdBy: varchar("created_by", { length: 255 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("guest_notes_guest_idx").on(table.guestId)],
+);
