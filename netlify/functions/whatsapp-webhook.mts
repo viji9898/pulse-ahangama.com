@@ -19,22 +19,26 @@ function verifyMetaSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): boolean {
-  if (!signatureHeader) return false;
-
-  const expectedSignature = crypto
-    .createHmac("sha256", env.metaAppSecret)
-    .update(rawBody)
-    .digest("hex");
-
-  const receivedSignature = signatureHeader.replace("sha256=", "");
-
-  if (expectedSignature.length !== receivedSignature.length) {
+  if (!signatureHeader?.startsWith("sha256=")) {
     return false;
   }
 
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSignature),
-    Buffer.from(receivedSignature),
+  const expected = crypto
+    .createHmac("sha256", env.metaAppSecret)
+    .update(rawBody, "utf8")
+    .digest();
+
+  const receivedHex = signatureHeader.slice("sha256=".length);
+
+  if (!/^[a-f0-9]{64}$/i.test(receivedHex)) {
+    return false;
+  }
+
+  const received = Buffer.from(receivedHex, "hex");
+
+  return (
+    expected.length === received.length &&
+    crypto.timingSafeEqual(expected, received)
   );
 }
 
@@ -70,15 +74,32 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           continue;
         }
 
+        console.log("Processing inbound WhatsApp message", {
+          from: incomingMessage.from,
+          id: incomingMessage.id,
+          type: incomingMessage.type,
+          phoneNumberId,
+        });
+
         const contact = value?.contacts?.find(
           (item) => item.wa_id === incomingMessage.from,
         );
 
         const profileName = contact?.profile?.name;
 
+        console.log("Resolving WhatsApp conversation", {
+          phoneNumber: incomingMessage.from,
+          profileName,
+        });
+
         const { guest, conversation } = await resolveConversation({
           phoneNumber: incomingMessage.from,
           profileName,
+        });
+
+        console.log("Resolved WhatsApp conversation", {
+          guestId: guest.id,
+          conversationId: conversation.id,
         });
 
         const messageBody =
@@ -89,7 +110,7 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           ? new Date(Number(incomingMessage.timestamp) * 1000)
           : new Date();
 
-        await db
+        const insertedMessages = await db
           .insert(messages)
           .values({
             conversationId: conversation.id,
@@ -108,23 +129,26 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           })
           .onConflictDoNothing({
             target: messages.providerMessageId,
-          });
-
-        await db
-          .update(conversations)
-          .set({
-            status: "open",
-            lastMessagePreview: messageBody.slice(0, 250),
-            lastMessageAt: messageTimestamp,
-            serviceWindowEndsAt: new Date(
-              messageTimestamp.getTime() + 24 * 60 * 60 * 1000,
-            ),
-            unreadCount: sql`
-              ${conversations.unreadCount} + 1
-            `,
-            updatedAt: new Date(),
           })
-          .where(eq(conversations.id, conversation.id));
+          .returning({ id: messages.id });
+
+        if (insertedMessages.length > 0) {
+          await db
+            .update(conversations)
+            .set({
+              status: "open",
+              lastMessagePreview: messageBody.slice(0, 250),
+              lastMessageAt: messageTimestamp,
+              serviceWindowEndsAt: new Date(
+                messageTimestamp.getTime() + 24 * 60 * 60 * 1000,
+              ),
+              unreadCount: sql`
+                ${conversations.unreadCount} + 1
+              `,
+              updatedAt: new Date(),
+            })
+            .where(eq(conversations.id, conversation.id));
+        }
       }
 
       for (const statusEvent of value?.statuses ?? []) {
@@ -206,6 +230,11 @@ export default async (request: Request): Promise<Response> => {
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
 
+  console.log("WhatsApp webhook POST received", {
+    hasSignature: Boolean(signature),
+    bodyLength: rawBody.length,
+  });
+
   if (!verifyMetaSignature(rawBody, signature)) {
     console.warn("Rejected WhatsApp webhook with invalid signature");
     return new Response("Invalid signature", { status: 401 });
@@ -219,6 +248,12 @@ export default async (request: Request): Promise<Response> => {
     return json({ error: "Invalid JSON payload" }, 400);
   }
 
+  console.log("WhatsApp webhook payload", {
+    object: payload.object,
+    entryCount: payload.entry?.length ?? 0,
+    entryIds: payload.entry?.map((entry) => entry.id),
+  });
+
   if (payload.object !== "whatsapp_business_account") {
     return json({ received: true, ignored: true });
   }
@@ -227,7 +262,10 @@ export default async (request: Request): Promise<Response> => {
     await processPayload(payload);
     return json({ received: true });
   } catch (error) {
-    console.error("WhatsApp webhook processing failed", error);
+    console.error("WhatsApp webhook processing failed", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
 
     // Return 500 so Meta can retry delivery.
     return json({ error: "Webhook processing failed" }, 500);
