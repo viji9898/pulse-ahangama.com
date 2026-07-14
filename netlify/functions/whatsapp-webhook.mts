@@ -1,9 +1,14 @@
 import crypto from "node:crypto";
 import type { Config } from "@netlify/functions";
-import { eq } from "drizzle-orm";
-import { messages, whatsappWebhookEvents } from "../../db/schema/index.js";
+import { eq, sql } from "drizzle-orm";
+import {
+  conversations,
+  messages,
+  whatsappWebhookEvents,
+} from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 import { env } from "./_shared/env.js";
+import { resolveConversation } from "./_shared/resolve-conversation.js";
 import type { WhatsAppWebhookPayload } from "./_shared/whatsapp-types.js";
 
 function json(data: unknown, status = 200): Response {
@@ -61,8 +66,65 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           phoneNumberId,
         );
 
-        // In the next step we will resolve/create the guest and conversation,
-        // then insert the inbound message into the messages table.
+        if (!incomingMessage.from || !incomingMessage.id) {
+          continue;
+        }
+
+        const contact = value?.contacts?.find(
+          (item) => item.wa_id === incomingMessage.from,
+        );
+
+        const profileName = contact?.profile?.name;
+
+        const { guest, conversation } = await resolveConversation({
+          phoneNumber: incomingMessage.from,
+          profileName,
+        });
+
+        const messageBody =
+          incomingMessage.text?.body ||
+          `[${incomingMessage.type || "unknown"} message]`;
+
+        const messageTimestamp = incomingMessage.timestamp
+          ? new Date(Number(incomingMessage.timestamp) * 1000)
+          : new Date();
+
+        await db
+          .insert(messages)
+          .values({
+            conversationId: conversation.id,
+            guestId: guest.id,
+            channel: "whatsapp",
+            direction: "inbound",
+            status: "delivered",
+            providerMessageId: incomingMessage.id,
+            messageType: incomingMessage.type || "unknown",
+            body: messageBody,
+            deliveredAt: messageTimestamp,
+            providerPayload: incomingMessage as unknown as Record<
+              string,
+              unknown
+            >,
+          })
+          .onConflictDoNothing({
+            target: messages.providerMessageId,
+          });
+
+        await db
+          .update(conversations)
+          .set({
+            status: "open",
+            lastMessagePreview: messageBody.slice(0, 250),
+            lastMessageAt: messageTimestamp,
+            serviceWindowEndsAt: new Date(
+              messageTimestamp.getTime() + 24 * 60 * 60 * 1000,
+            ),
+            unreadCount: sql`
+              ${conversations.unreadCount} + 1
+            `,
+            updatedAt: new Date(),
+          })
+          .where(eq(conversations.id, conversation.id));
       }
 
       for (const statusEvent of value?.statuses ?? []) {

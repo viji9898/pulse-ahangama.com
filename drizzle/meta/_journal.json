@@ -15,6 +15,13 @@
       "when": 1784036896277,
       "tag": "0001_majestic_vulture",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784052986853,
+      "tag": "0002_silent_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -104,12 +105,27 @@ export const conversations = pgTable(
       .references(() => guests.id)
       .notNull(),
     channel: messageChannelEnum("channel").notNull(),
-    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+
+    unreadCount: integer("unread_count").default(0).notNull(),
+    assignedTo: varchar("assigned_to", { length: 255 }),
+    status: varchar("status", { length: 30 }).default("open").notNull(),
+
+    lastMessagePreview: text("last_message_preview"),
+    lastMessageAt: timestamp("last_message_at", {
+      withTimezone: true,
+    }),
+
     serviceWindowEndsAt: timestamp("service_window_ends_at", {
       withTimezone: true,
     }),
+
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
