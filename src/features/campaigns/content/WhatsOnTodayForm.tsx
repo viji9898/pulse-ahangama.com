@@ -1,6 +1,12 @@
 import { Card, DatePicker, Form, Input, Space, Typography } from "antd";
 import dayjs from "dayjs";
 
+const initialEvents = [
+  { id: crypto.randomUUID() },
+  { id: crypto.randomUUID() },
+  { id: crypto.randomUUID() },
+];
+
 export default function WhatsOnTodayForm() {
   return (
     <>
@@ -20,17 +26,11 @@ export default function WhatsOnTodayForm() {
       <Typography.Title level={5}>Featured events</Typography.Title>
 
       <Typography.Paragraph type="secondary">
-        Add exactly three events in the order they should appear.
+        Select exactly three events. The buttons are already configured in the
+        approved WhatsApp template.
       </Typography.Paragraph>
 
-      <Form.List
-        name={["content", "events"]}
-        initialValue={[
-          { id: crypto.randomUUID() },
-          { id: crypto.randomUUID() },
-          { id: crypto.randomUUID() },
-        ]}
-      >
+      <Form.List name={["content", "events"]} initialValue={initialEvents}>
         {(fields) => (
           <Space direction="vertical" style={{ width: "100%" }}>
             {fields.map((field, index) => (
@@ -69,7 +69,8 @@ export default function WhatsOnTodayForm() {
 
                 <Form.Item
                   name={[field.name, "url"]}
-                  label="Event URL"
+                  label="Internal event URL"
+                  tooltip="Stored for analytics; it is not inserted into this WhatsApp template."
                   rules={[{ type: "url" }]}
                 >
                   <Input placeholder="https://ahangama.com/events/..." />

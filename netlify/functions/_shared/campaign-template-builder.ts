@@ -20,7 +20,7 @@ function formatEvent(event: {
     cleanLine(event.title),
     `📍 ${cleanLine(event.venue)}`,
     `🕒 ${cleanLine(event.time)}`,
-  ].join("\n");
+  ].join(" · ");
 }
 
 export function buildCampaignTemplate(

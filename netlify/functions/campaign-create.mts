@@ -133,7 +133,7 @@ export default async (request: Request): Promise<Response> => {
           estimatedCostUsd: estimatedCostPerMessageUsd.toFixed(4),
           templateVariables: {
             ...builtTemplate.variables,
-            first_name: recipient.firstName || "there",
+            customer_name: recipient.firstName || "there",
           },
         })),
       );

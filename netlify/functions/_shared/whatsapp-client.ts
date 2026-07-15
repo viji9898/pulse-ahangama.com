@@ -19,6 +19,11 @@ type MetaMessageResponse = {
   };
 };
 
+type NamedTemplateVariable = {
+  name: string;
+  value: string;
+};
+
 function normalizePhoneNumber(phoneNumber: string): string {
   const normalized = phoneNumber.replace(/[^\d]/g, "");
 
@@ -90,6 +95,36 @@ export async function sendTemplateMessage(input: {
       language: {
         code: input.languageCode ?? "en_US",
       },
+    },
+  });
+}
+
+export async function sendNamedTemplateMessage(input: {
+  to: string;
+  templateName: string;
+  languageCode: string;
+  variables: NamedTemplateVariable[];
+}): Promise<MetaMessageResponse> {
+  return sendMessage({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizePhoneNumber(input.to),
+    type: "template",
+    template: {
+      name: input.templateName,
+      language: {
+        code: input.languageCode,
+      },
+      components: [
+        {
+          type: "body",
+          parameters: input.variables.map((variable) => ({
+            type: "text",
+            parameter_name: variable.name,
+            text: variable.value,
+          })),
+        },
+      ],
     },
   });
 }
