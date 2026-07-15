@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { Config } from "@netlify/functions";
 import { eq, sql } from "drizzle-orm";
 import {
+  campaignTestRecipients,
   conversations,
   messages,
   whatsappWebhookEvents,
@@ -189,6 +190,22 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           .update(messages)
           .set(update)
           .where(eq(messages.providerMessageId, statusEvent.id));
+
+        await db
+          .update(campaignTestRecipients)
+          .set({
+            status: statusEvent.status,
+            ...(statusEvent.status === "delivered"
+              ? { deliveredAt: timestamp }
+              : {}),
+            ...(statusEvent.status === "read" ? { readAt: timestamp } : {}),
+            ...(statusEvent.status === "failed"
+              ? { failedAt: timestamp }
+              : {}),
+          })
+          .where(
+            eq(campaignTestRecipients.providerMessageId, statusEvent.id),
+          );
       }
     }
   }

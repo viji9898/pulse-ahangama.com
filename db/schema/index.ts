@@ -201,6 +201,16 @@ export const campaigns = pgTable(
       withTimezone: true,
     }),
 
+    lastTestSentAt: timestamp("last_test_sent_at", {
+      withTimezone: true,
+    }),
+
+    lastTestRunId: uuid("last_test_run_id"),
+
+    testApprovedAt: timestamp("test_approved_at", {
+      withTimezone: true,
+    }),
+
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -379,6 +389,49 @@ export const guestNotes = pgTable(
   (table) => [index("guest_notes_guest_idx").on(table.guestId)],
 );
 
+export const testAudiences = pgTable("test_audiences", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 150 }).notNull(),
+  description: text("description"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const testAudienceMembers = pgTable(
+  "test_audience_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    audienceId: uuid("audience_id")
+      .references(() => testAudiences.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    guestId: uuid("guest_id")
+      .references(() => guests.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("test_audience_member_unique").on(
+      table.audienceId,
+      table.guestId,
+    ),
+    index("test_audience_members_audience_idx").on(table.audienceId),
+  ],
+);
+
 export const campaignRecipientStatusEnum = pgEnum("campaign_recipient_status", [
   "pending",
   "queued",
@@ -387,6 +440,13 @@ export const campaignRecipientStatusEnum = pgEnum("campaign_recipient_status", [
   "read",
   "failed",
   "skipped",
+]);
+
+export const campaignTestStatusEnum = pgEnum("campaign_test_status", [
+  "queued",
+  "sending",
+  "completed",
+  "failed",
 ]);
 
 export const campaignRecipients = pgTable(
@@ -463,6 +523,82 @@ export const campaignRecipients = pgTable(
     index("campaign_recipients_campaign_idx").on(table.campaignId),
     index("campaign_recipients_status_idx").on(table.status),
     uniqueIndex("campaign_recipient_provider_message_unique").on(
+      table.providerMessageId,
+    ),
+  ],
+);
+
+export const campaignTestRuns = pgTable(
+  "campaign_test_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    campaignId: uuid("campaign_id")
+      .references(() => campaigns.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    audienceId: uuid("audience_id")
+      .references(() => testAudiences.id)
+      .notNull(),
+
+    status: campaignTestStatusEnum("status").default("queued").notNull(),
+
+    recipientCount: integer("recipient_count").default(0).notNull(),
+    sentCount: integer("sent_count").default(0).notNull(),
+    failedCount: integer("failed_count").default(0).notNull(),
+
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("campaign_test_runs_campaign_idx").on(table.campaignId)],
+);
+
+export const campaignTestRecipients = pgTable(
+  "campaign_test_recipients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    testRunId: uuid("test_run_id")
+      .references(() => campaignTestRuns.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    guestId: uuid("guest_id").references(() => guests.id).notNull(),
+
+    phoneNumber: varchar("phone_number", {
+      length: 40,
+    }).notNull(),
+
+    status: campaignRecipientStatusEnum("status").default("pending").notNull(),
+
+    providerMessageId: varchar("provider_message_id", {
+      length: 255,
+    }),
+
+    errorMessage: text("error_message"),
+
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("campaign_test_recipient_unique").on(
+      table.testRunId,
+      table.guestId,
+    ),
+    uniqueIndex("campaign_test_provider_message_unique").on(
       table.providerMessageId,
     ),
   ],
