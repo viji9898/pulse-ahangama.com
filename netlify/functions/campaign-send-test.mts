@@ -135,10 +135,16 @@ export default async (request: Request): Promise<Response> => {
   let failedCount = 0;
 
   for (const member of eligibleMembers) {
+    const baseVariables = campaign.templateVariables ?? {};
+    const guestName = member.firstName || "there";
     const variables = {
-      ...(campaign.templateVariables ?? {}),
-      customer_name: member.firstName || "there",
-      first_name: member.firstName || "there",
+      ...baseVariables,
+      ...(Object.prototype.hasOwnProperty.call(baseVariables, "customer_name")
+        ? { customer_name: guestName }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(baseVariables, "first_name")
+        ? { first_name: guestName }
+        : {}),
     };
 
     try {
