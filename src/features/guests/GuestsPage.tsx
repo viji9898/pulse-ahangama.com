@@ -69,9 +69,8 @@ export default function GuestsPage({ onOpenGuest }: Props) {
       key: "guest",
       render: (_, guest) => {
         const name =
-          [guest.firstName, guest.lastName]
-            .filter(Boolean)
-            .join(" ") || "WhatsApp guest";
+          [guest.firstName, guest.lastName].filter(Boolean).join(" ") ||
+          "WhatsApp guest";
 
         return (
           <Space>
@@ -109,11 +108,7 @@ export default function GuestsPage({ onOpenGuest }: Props) {
       title: "WhatsApp",
       dataIndex: "whatsappOptIn",
       render: (enabled: boolean) =>
-        enabled ? (
-          <Tag color="green">Opted in</Tag>
-        ) : (
-          <Tag>Not opted in</Tag>
-        ),
+        enabled ? <Tag color="green">Opted in</Tag> : <Tag>Not opted in</Tag>,
     },
     {
       title: "Last contact",
@@ -125,20 +120,14 @@ export default function GuestsPage({ onOpenGuest }: Props) {
       title: "",
       key: "action",
       render: (_, guest) => (
-        <Button onClick={() => onOpenGuest(guest.id)}>
-          View
-        </Button>
+        <Button onClick={() => onOpenGuest(guest.id)}>View</Button>
       ),
     },
   ];
 
   return (
     <div>
-      <Space
-        direction="vertical"
-        size={20}
-        style={{ width: "100%" }}
-      >
+      <Space direction="vertical" size={20} style={{ width: "100%" }}>
         <div>
           <Typography.Title level={2} style={{ marginBottom: 4 }}>
             Guests

@@ -34,11 +34,7 @@ export default function WhatsOnTodayForm() {
         {(fields) => (
           <Space direction="vertical" style={{ width: "100%" }}>
             {fields.map((field, index) => (
-              <Card
-                key={field.key}
-                size="small"
-                title={`Event ${index + 1}`}
-              >
+              <Card key={field.key} size="small" title={`Event ${index + 1}`}>
                 <Form.Item name={[field.name, "id"]} hidden>
                   <Input />
                 </Form.Item>

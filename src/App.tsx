@@ -93,7 +93,9 @@ export default function App() {
           {activePage === "inbox" && <InboxPage />}
 
           {activePage === "guests" && (
-            <GuestsPage onOpenGuest={(guestId) => setSelectedGuestId(guestId)} />
+            <GuestsPage
+              onOpenGuest={(guestId) => setSelectedGuestId(guestId)}
+            />
           )}
 
           {activePage === "campaigns" && <CampaignsPage />}
@@ -101,40 +103,40 @@ export default function App() {
           {activePage !== "inbox" &&
             activePage !== "guests" &&
             activePage !== "campaigns" && (
-            <>
-              <Typography.Title level={2}>Dashboard</Typography.Title>
+              <>
+                <Typography.Title level={2}>Dashboard</Typography.Title>
 
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic title="Active guests" value={0} />
-                  </Card>
-                </Col>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card>
+                      <Statistic title="Active guests" value={0} />
+                    </Card>
+                  </Col>
 
-                <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic title="WhatsApps today" value={0} />
-                  </Card>
-                </Col>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card>
+                      <Statistic title="WhatsApps today" value={0} />
+                    </Card>
+                  </Col>
 
-                <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic title="Unread conversations" value={0} />
-                  </Card>
-                </Col>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card>
+                      <Statistic title="Unread conversations" value={0} />
+                    </Card>
+                  </Col>
 
-                <Col xs={24} sm={12} lg={6}>
-                  <Card>
-                    <Statistic
-                      title="Campaign revenue"
-                      value={0}
-                      prefix="$"
-                      precision={2}
-                    />
-                  </Card>
-                </Col>
-              </Row>
-            </>
+                  <Col xs={24} sm={12} lg={6}>
+                    <Card>
+                      <Statistic
+                        title="Campaign revenue"
+                        value={0}
+                        prefix="$"
+                        precision={2}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </>
             )}
 
           <GuestProfileDrawer

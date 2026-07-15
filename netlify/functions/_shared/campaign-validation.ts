@@ -13,7 +13,9 @@ const whatsOnEventSchema = z.object({
 export const whatsOnContentSchema = z.object({
   type: z.literal("whats_on_today"),
   date: z.string().min(1),
-  events: z.array(whatsOnEventSchema).length(3, "Exactly three events are required"),
+  events: z
+    .array(whatsOnEventSchema)
+    .length(3, "Exactly three events are required"),
 });
 
 export const venueFeatureContentSchema = z.object({
