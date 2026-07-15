@@ -39,6 +39,12 @@ export const campaignStatusEnum = pgEnum("campaign_status", [
   "cancelled",
 ]);
 
+export const campaignTypeEnum = pgEnum("campaign_type", [
+  "whats_on_today",
+  "venue_feature",
+  "wellness_pick",
+]);
+
 export const guests = pgTable(
   "guests",
   {
@@ -87,6 +93,7 @@ export const campaigns = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     channel: messageChannelEnum("channel").notNull(),
     status: campaignStatusEnum("status").default("draft").notNull(),
+    campaignType: campaignTypeEnum("campaign_type").notNull(),
 
     venueId: uuid("venue_id").references(() => venues.id),
 
@@ -97,6 +104,57 @@ export const campaigns = pgTable(
     templateLanguage: varchar("template_language", {
       length: 20,
     }).default("en_US"),
+
+    contentPayload: jsonb("content_payload")
+      .$type<
+        | {
+            type: "whats_on_today";
+            date: string;
+            events: [
+              {
+                id: string;
+                title: string;
+                venue: string;
+                time: string;
+                url?: string;
+              },
+              {
+                id: string;
+                title: string;
+                venue: string;
+                time: string;
+                url?: string;
+              },
+              {
+                id: string;
+                title: string;
+                venue: string;
+                time: string;
+                url?: string;
+              },
+            ];
+          }
+        | {
+            type: "venue_feature";
+            venueName: string;
+            description: string;
+            offer: string;
+            url: string;
+          }
+        | {
+            type: "wellness_pick";
+            venueName: string;
+            description: string;
+            practicalDetail: string;
+            url: string;
+          }
+      >()
+      .notNull(),
+
+    templateVariables: jsonb("template_variables")
+      .$type<Record<string, string>>()
+      .default({})
+      .notNull(),
 
     audienceDefinition: jsonb("audience_definition")
       .$type<{

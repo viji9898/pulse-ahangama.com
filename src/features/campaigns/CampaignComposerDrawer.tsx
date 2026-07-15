@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  Card,
   DatePicker,
   Descriptions,
   Divider,
@@ -19,6 +20,9 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import VenueFeatureForm from "./content/VenueFeatureForm";
+import WellnessPickForm from "./content/WellnessPickForm";
+import WhatsOnTodayForm from "./content/WhatsOnTodayForm";
 
 type Props = {
   open: boolean;
@@ -44,10 +48,19 @@ type PreviewResponse = {
   recipients: RecipientPreview[];
 };
 
+type ContentPreviewResponse = {
+  ok: boolean;
+  campaignType: CampaignFormValues["campaignType"];
+  templateName: string;
+  languageCode: string;
+  variables: Record<string, string>;
+  preview: string;
+};
+
 type CampaignFormValues = {
   name: string;
-  templateName: string;
-  templateLanguage: string;
+  campaignType: "whats_on_today" | "venue_feature" | "wellness_pick";
+  content: Record<string, unknown>;
   interests?: string[];
   accommodationName?: string;
   currentlyStaying: boolean;
@@ -77,8 +90,12 @@ export default function CampaignComposerDrawer({
   onCreated,
 }: Props) {
   const [form] = Form.useForm<CampaignFormValues>();
+  const campaignType = Form.useWatch("campaignType", form);
 
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+
+  const [contentPreview, setContentPreview] =
+    useState<ContentPreviewResponse | null>(null);
 
   const [previewing, setPreviewing] = useState(false);
 
@@ -88,7 +105,8 @@ export default function CampaignComposerDrawer({
     queueMicrotask(() => {
       if (open) {
         form.setFieldsValue({
-          templateLanguage: "en_US",
+          campaignType: "venue_feature",
+          content: {},
           currentlyStaying: true,
           excludeRecentlyMessagedHours: 24,
           estimatedCostPerMessageUsd: 0.02,
@@ -97,6 +115,7 @@ export default function CampaignComposerDrawer({
       } else {
         form.resetFields();
         setPreview(null);
+        setContentPreview(null);
       }
     });
   }, [open, form]);
@@ -111,19 +130,41 @@ export default function CampaignComposerDrawer({
     };
   }
 
+  function buildContent(values: CampaignFormValues) {
+    return {
+      ...values.content,
+      type: values.campaignType,
+    };
+  }
+
+  async function previewContent(values: CampaignFormValues) {
+    const response = await fetch("/api/campaigns/content-preview", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildContent(values)),
+    });
+
+    const result = (await response.json()) as ContentPreviewResponse & {
+      error?: string;
+    };
+
+    if (!response.ok) {
+      throw new Error(result.error || "Unable to preview message");
+    }
+
+    return result;
+  }
+
   async function previewAudience() {
-    const values = await form.validateFields([
-      "interests",
-      "accommodationName",
-      "currentlyStaying",
-      "excludeRecentlyMessagedHours",
-      "estimatedCostPerMessageUsd",
-      "venuePriceUsd",
-    ]);
+    const values = await form.validateFields();
 
     setPreviewing(true);
 
     try {
+      const messagePreview = await previewContent(values);
+
       const response = await fetch("/api/campaigns/audience-preview", {
         method: "POST",
         headers: {
@@ -144,10 +185,11 @@ export default function CampaignComposerDrawer({
         throw new Error(result.error || "Unable to preview audience");
       }
 
+      setContentPreview(messagePreview);
       setPreview(result);
     } catch (error) {
       message.error(
-        error instanceof Error ? error.message : "Unable to preview audience",
+        error instanceof Error ? error.message : "Unable to preview campaign",
       );
     } finally {
       setPreviewing(false);
@@ -172,8 +214,7 @@ export default function CampaignComposerDrawer({
         },
         body: JSON.stringify({
           name: values.name,
-          templateName: values.templateName,
-          templateLanguage: values.templateLanguage,
+          content: buildContent(values),
           audience: buildAudience(values),
           estimatedCostPerMessageUsd: values.estimatedCostPerMessageUsd,
           venuePriceUsd: values.venuePriceUsd,
@@ -266,40 +307,38 @@ export default function CampaignComposerDrawer({
         </Form.Item>
 
         <Form.Item
-          name="templateName"
-          label="Approved WhatsApp template"
-          rules={[
-            {
-              required: true,
-              message: "Enter the approved template name",
-            },
-          ]}
-        >
-          <Input placeholder="venue_breakfast_feature" />
-        </Form.Item>
-
-        <Form.Item
-          name="templateLanguage"
-          label="Template language"
-          rules={[
-            {
-              required: true,
-            },
-          ]}
+          name="campaignType"
+          label="Campaign type"
+          rules={[{ required: true }]}
         >
           <Select
             options={[
               {
-                label: "English (US)",
-                value: "en_US",
+                label: "What’s On Today",
+                value: "whats_on_today",
               },
               {
-                label: "English (UK)",
-                value: "en_GB",
+                label: "Venue Feature",
+                value: "venue_feature",
+              },
+              {
+                label: "Wellness Pick",
+                value: "wellness_pick",
               },
             ]}
+            onChange={() => {
+              form.setFieldValue("content", {});
+              setPreview(null);
+              setContentPreview(null);
+            }}
           />
         </Form.Item>
+
+        {campaignType === "whats_on_today" && <WhatsOnTodayForm />}
+
+        {campaignType === "venue_feature" && <VenueFeatureForm />}
+
+        {campaignType === "wellness_pick" && <WellnessPickForm />}
 
         <Divider />
 
@@ -400,6 +439,18 @@ export default function CampaignComposerDrawer({
           <Divider />
 
           <Typography.Title level={4}>Campaign preview</Typography.Title>
+
+          {contentPreview && (
+            <Card style={{ marginBottom: 20 }}>
+              <Typography.Text strong>Message preview</Typography.Text>
+
+              <Typography.Paragraph
+                style={{ marginTop: 12, whiteSpace: "pre-line" }}
+              >
+                {contentPreview.preview}
+              </Typography.Paragraph>
+            </Card>
+          )}
 
           <div
             style={{

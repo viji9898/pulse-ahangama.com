@@ -5,16 +5,18 @@ import {
   findCampaignAudience,
   type CampaignAudienceDefinition,
 } from "./_shared/campaign-audience.js";
+import type { CampaignContent } from "./_shared/campaign-content-types.js";
+import { buildCampaignTemplate } from "./_shared/campaign-template-builder.js";
+import { campaignContentSchema } from "./_shared/campaign-validation.js";
 
 type RequestBody = {
   name?: string;
   venueId?: string | null;
-  templateName?: string;
-  templateLanguage?: string;
   scheduledAt?: string | null;
   audience?: CampaignAudienceDefinition;
   estimatedCostPerMessageUsd?: number;
   venuePriceUsd?: number;
+  content?: CampaignContent;
 };
 
 export default async (request: Request): Promise<Response> => {
@@ -43,7 +45,6 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const name = input.name?.trim();
-  const templateName = input.templateName?.trim();
 
   if (!name) {
     return Response.json(
@@ -56,16 +57,22 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
-  if (!templateName) {
+  const parsedContent = campaignContentSchema.safeParse(input.content);
+
+  if (!parsedContent.success) {
     return Response.json(
       {
-        error: "WhatsApp template is required",
+        error: "Valid campaign content is required",
+        issues: parsedContent.error.flatten(),
       },
       {
         status: 400,
       },
     );
   }
+
+  const content = parsedContent.data as CampaignContent;
+  const builtTemplate = buildCampaignTemplate(content);
 
   try {
     const audience = input.audience ?? {
@@ -102,9 +109,12 @@ export default async (request: Request): Promise<Response> => {
         name,
         channel: "whatsapp",
         status: scheduledAt ? "scheduled" : "draft",
+        campaignType: content.type,
         venueId: input.venueId || null,
-        templateName,
-        templateLanguage: input.templateLanguage ?? "en_US",
+        templateName: builtTemplate.templateName,
+        templateLanguage: builtTemplate.languageCode,
+        contentPayload: content,
+        templateVariables: builtTemplate.variables,
         audienceDefinition: audience,
         recipientCount: recipients.length,
         estimatedMetaCostUsd: estimatedMetaCostUsd.toFixed(2),
@@ -122,6 +132,7 @@ export default async (request: Request): Promise<Response> => {
           status: "pending" as const,
           estimatedCostUsd: estimatedCostPerMessageUsd.toFixed(4),
           templateVariables: {
+            ...builtTemplate.variables,
             first_name: recipient.firstName || "there",
           },
         })),
