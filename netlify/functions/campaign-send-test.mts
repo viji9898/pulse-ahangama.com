@@ -97,14 +97,20 @@ export default async (request: Request): Promise<Response> => {
     (member) => member.phoneNumber && member.whatsappOptIn,
   );
 
-  if (!eligibleMembers.length) {
+  const uniqueEligibleMembers = Array.from(
+    new Map(
+      eligibleMembers.map((member) => [member.phoneNumber, member]),
+    ).values(),
+  );
+
+  if (!uniqueEligibleMembers.length) {
     return Response.json(
       { error: "The test audience has no eligible recipients" },
       { status: 409 },
     );
   }
 
-  if (eligibleMembers.length > 20) {
+  if (uniqueEligibleMembers.length > 20) {
     return Response.json(
       { error: "Test sends are limited to 20 recipients" },
       { status: 400 },
@@ -117,13 +123,13 @@ export default async (request: Request): Promise<Response> => {
       campaignId: campaign.id,
       audienceId: input.audienceId,
       status: "sending",
-      recipientCount: eligibleMembers.length,
+      recipientCount: uniqueEligibleMembers.length,
       startedAt: new Date(),
     })
     .returning();
 
   await db.insert(campaignTestRecipients).values(
-    eligibleMembers.map((member) => ({
+    uniqueEligibleMembers.map((member) => ({
       testRunId: testRun.id,
       guestId: member.guestId,
       phoneNumber: member.phoneNumber!,
@@ -134,7 +140,7 @@ export default async (request: Request): Promise<Response> => {
   let sentCount = 0;
   let failedCount = 0;
 
-  for (const member of eligibleMembers) {
+  for (const member of uniqueEligibleMembers) {
     const baseVariables = campaign.templateVariables ?? {};
     const guestName = member.firstName || "there";
     const variables = {
@@ -198,7 +204,8 @@ export default async (request: Request): Promise<Response> => {
   await db
     .update(campaignTestRuns)
     .set({
-      status: failedCount === eligibleMembers.length ? "failed" : "completed",
+      status:
+        failedCount === uniqueEligibleMembers.length ? "failed" : "completed",
       sentCount,
       failedCount,
       completedAt: new Date(),
