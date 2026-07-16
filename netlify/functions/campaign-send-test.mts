@@ -4,12 +4,16 @@ import {
   campaigns,
   campaignTestRecipients,
   campaignTestRuns,
+  conversations,
   guests,
+  messages,
   testAudienceMembers,
   testAudiences,
 } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 import { getTemplate } from "./_shared/meta-templates.js";
+import { renderTemplateMessage } from "./_shared/render-template-message.js";
+import { resolveGuestConversation } from "./_shared/resolve-guest-conversation.js";
 import { sendNamedTemplateMessage } from "./_shared/whatsapp-client.js";
 
 type RequestBody = {
@@ -153,6 +157,32 @@ export default async (request: Request): Promise<Response> => {
         : {}),
     };
 
+    const { conversation } = await resolveGuestConversation(member.guestId);
+    const renderedBody = renderTemplateMessage({
+      templateName: campaign.templateName,
+      variables,
+    });
+
+    const [pendingMessage] = await db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        guestId: member.guestId,
+        campaignId: campaign.id,
+        channel: "whatsapp",
+        direction: "outbound",
+        status: "queued",
+        messageType: "template",
+        body: renderedBody,
+        providerPayload: {
+          templateName: campaign.templateName,
+          languageCode: campaign.templateLanguage,
+          variables,
+          testRunId: testRun.id,
+        },
+      })
+      .returning();
+
     try {
       const result = await sendNamedTemplateMessage({
         to: member.phoneNumber!,
@@ -167,12 +197,30 @@ export default async (request: Request): Promise<Response> => {
         throw new Error("Meta did not return a message ID");
       }
 
+      const sentAt = new Date();
+
+      await db
+        .update(messages)
+        .set({
+          providerMessageId,
+          status: "sent",
+          sentAt,
+          providerPayload: {
+            templateName: campaign.templateName,
+            languageCode: campaign.templateLanguage,
+            variables,
+            metaResponse: result,
+            testRunId: testRun.id,
+          },
+        })
+        .where(eq(messages.id, pendingMessage.id));
+
       await db
         .update(campaignTestRecipients)
         .set({
           status: "sent",
           providerMessageId,
-          sentAt: new Date(),
+          sentAt,
         })
         .where(
           and(
@@ -181,14 +229,40 @@ export default async (request: Request): Promise<Response> => {
           ),
         );
 
+      await db
+        .update(conversations)
+        .set({
+          lastMessagePreview: renderedBody.slice(0, 250),
+          lastMessageAt: sentAt,
+          updatedAt: sentAt,
+        })
+        .where(eq(conversations.id, conversation.id));
+
       sentCount += 1;
     } catch (error) {
+      const failedAt = new Date();
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      await db
+        .update(messages)
+        .set({
+          status: "failed",
+          failedAt,
+          providerPayload: {
+            error: errorMessage,
+            templateName: campaign.templateName,
+            variables,
+            testRunId: testRun.id,
+          },
+        })
+        .where(eq(messages.id, pendingMessage.id));
+
       await db
         .update(campaignTestRecipients)
         .set({
           status: "failed",
-          failedAt: new Date(),
-          errorMessage: error instanceof Error ? error.message : String(error),
+          failedAt,
+          errorMessage,
         })
         .where(
           and(
@@ -224,7 +298,7 @@ export default async (request: Request): Promise<Response> => {
   return Response.json({
     ok: failedCount === 0,
     testRunId: testRun.id,
-    recipientCount: eligibleMembers.length,
+    recipientCount: uniqueEligibleMembers.length,
     sentCount,
     failedCount,
   });
