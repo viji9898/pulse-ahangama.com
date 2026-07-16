@@ -285,7 +285,7 @@ export default function CampaignsPage() {
     {
       title: "Meta cost",
       dataIndex: "estimatedMetaCostUsd",
-      render: (value: string) => `$${Number(value).toFixed(2)}`,
+      render: (value: string) => `$${Number(value).toFixed(4)}`,
     },
     {
       title: "Venue price",

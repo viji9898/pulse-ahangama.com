@@ -3,6 +3,7 @@ import {
   findCampaignAudience,
   type CampaignAudienceDefinition,
 } from "./_shared/campaign-audience.js";
+import { calculateMarketingCostBreakdown } from "../../src/lib/whatsapp-pricing.js";
 
 type RequestBody = {
   audience?: CampaignAudienceDefinition;
@@ -38,22 +39,18 @@ export default async (request: Request): Promise<Response> => {
   try {
     const recipients = await findCampaignAudience(input.audience ?? {});
 
-    const estimatedCostPerMessageUsd = Math.max(
-      0,
-      input.estimatedCostPerMessageUsd ?? 0.02,
-    );
-
-    const estimatedMetaCostUsd = recipients.length * estimatedCostPerMessageUsd;
+    const { costBreakdown, estimatedMetaCostUsd } =
+      calculateMarketingCostBreakdown(recipients);
 
     const venuePriceUsd = Math.max(0, input.venuePriceUsd ?? 0);
 
     return Response.json({
       recipientCount: recipients.length,
-      estimatedCostPerMessageUsd,
-      estimatedMetaCostUsd: Math.round(estimatedMetaCostUsd * 100) / 100,
+      costBreakdown,
+      estimatedMetaCostUsd,
       venuePriceUsd,
       estimatedGrossProfitUsd:
-        Math.round((venuePriceUsd - estimatedMetaCostUsd) * 100) / 100,
+        Math.round((venuePriceUsd - estimatedMetaCostUsd) * 10000) / 10000,
       estimatedMarginPercent:
         venuePriceUsd > 0
           ? Math.round(

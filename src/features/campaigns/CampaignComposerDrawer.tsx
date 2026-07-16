@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import VenueFeatureForm from "./content/VenueFeatureForm";
 import WellnessPickForm from "./content/WellnessPickForm";
 import WhatsOnTodayForm from "./content/WhatsOnTodayForm";
+import type { WhatsAppCostBreakdown } from "../../lib/whatsapp-pricing";
 
 type Props = {
   open: boolean;
@@ -40,7 +41,7 @@ type RecipientPreview = {
 
 type PreviewResponse = {
   recipientCount: number;
-  estimatedCostPerMessageUsd: number;
+  costBreakdown: WhatsAppCostBreakdown;
   estimatedMetaCostUsd: number;
   venuePriceUsd: number;
   estimatedGrossProfitUsd: number;
@@ -57,6 +58,17 @@ type ContentPreviewResponse = {
   preview: string;
 };
 
+const countryLabels: Record<string, string> = {
+  LK: "Sri Lanka",
+  GB: "United Kingdom",
+  EG: "Egypt",
+  IN: "India",
+};
+
+function formatUsd(value: number, precision = 4): string {
+  return `$${value.toFixed(precision)}`;
+}
+
 type CampaignFormValues = {
   name: string;
   campaignType: "whats_on_today" | "venue_feature" | "wellness_pick";
@@ -65,7 +77,6 @@ type CampaignFormValues = {
   accommodationName?: string;
   currentlyStaying: boolean;
   excludeRecentlyMessagedHours?: number;
-  estimatedCostPerMessageUsd: number;
   venuePriceUsd: number;
   scheduledAt?: dayjs.Dayjs;
 };
@@ -109,7 +120,6 @@ export default function CampaignComposerDrawer({
           content: {},
           currentlyStaying: true,
           excludeRecentlyMessagedHours: 24,
-          estimatedCostPerMessageUsd: 0.02,
           venuePriceUsd: 75,
         });
       } else {
@@ -172,7 +182,6 @@ export default function CampaignComposerDrawer({
         },
         body: JSON.stringify({
           audience: buildAudience(values as CampaignFormValues),
-          estimatedCostPerMessageUsd: values.estimatedCostPerMessageUsd,
           venuePriceUsd: values.venuePriceUsd,
         }),
       });
@@ -216,7 +225,6 @@ export default function CampaignComposerDrawer({
           name: values.name,
           content: buildContent(values),
           audience: buildAudience(values),
-          estimatedCostPerMessageUsd: values.estimatedCostPerMessageUsd,
           venuePriceUsd: values.venuePriceUsd,
           scheduledAt: values.scheduledAt?.toISOString() ?? null,
         }),
@@ -382,24 +390,6 @@ export default function CampaignComposerDrawer({
         <Typography.Title level={4}>Commercials</Typography.Title>
 
         <Form.Item
-          name="estimatedCostPerMessageUsd"
-          label="Estimated Meta cost per recipient"
-          rules={[
-            {
-              required: true,
-            },
-          ]}
-        >
-          <InputNumber
-            min={0}
-            step={0.001}
-            precision={4}
-            prefix="$"
-            style={{ width: 220 }}
-          />
-        </Form.Item>
-
-        <Form.Item
           name="venuePriceUsd"
           label="Venue campaign price"
           rules={[
@@ -463,9 +453,9 @@ export default function CampaignComposerDrawer({
             <Statistic title="Recipients" value={preview.recipientCount} />
 
             <Statistic
-              title="Estimated Meta cost"
+              title="Total Meta cost"
               value={preview.estimatedMetaCostUsd}
-              precision={2}
+              precision={4}
               prefix="$"
             />
 
@@ -488,6 +478,36 @@ export default function CampaignComposerDrawer({
               }
             />
           </div>
+
+          <Card style={{ marginBottom: 20 }}>
+            <Typography.Text strong>Estimated Meta cost</Typography.Text>
+
+            <Space direction="vertical" size={10} style={{ marginTop: 12 }}>
+              {Object.entries(preview.costBreakdown).map(
+                ([countryCode, item]) => (
+                  <div key={countryCode}>
+                    <Typography.Text strong>
+                      {countryLabels[countryCode] ?? countryCode} ({item.count})
+                    </Typography.Text>
+
+                    <Typography.Text type="secondary" style={{ display: "block" }}>
+                      {item.count} × {formatUsd(item.price)} = {formatUsd(item.total)}
+                    </Typography.Text>
+                  </div>
+                ),
+              )}
+
+              <Divider style={{ margin: "4px 0" }} />
+
+              <div>
+                <Typography.Text strong>Total</Typography.Text>
+
+                <Typography.Title level={4} style={{ margin: 0 }}>
+                  {formatUsd(preview.estimatedMetaCostUsd)}
+                </Typography.Title>
+              </div>
+            </Space>
+          </Card>
 
           <Descriptions
             size="small"

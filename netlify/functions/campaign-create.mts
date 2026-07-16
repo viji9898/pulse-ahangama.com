@@ -8,6 +8,10 @@ import {
 import type { CampaignContent } from "./_shared/campaign-content-types.js";
 import { buildCampaignTemplate } from "./_shared/campaign-template-builder.js";
 import { campaignContentSchema } from "./_shared/campaign-validation.js";
+import {
+  calculateMarketingCostBreakdown,
+  getMarketingMessageCost,
+} from "../../src/lib/whatsapp-pricing.js";
 
 type RequestBody = {
   name?: string;
@@ -81,12 +85,8 @@ export default async (request: Request): Promise<Response> => {
 
     const recipients = await findCampaignAudience(audience);
 
-    const estimatedCostPerMessageUsd = Math.max(
-      0,
-      input.estimatedCostPerMessageUsd ?? 0.02,
-    );
-
-    const estimatedMetaCostUsd = recipients.length * estimatedCostPerMessageUsd;
+    const { costBreakdown, estimatedMetaCostUsd } =
+      calculateMarketingCostBreakdown(recipients);
 
     const venuePriceUsd = Math.max(0, input.venuePriceUsd ?? 0);
 
@@ -117,7 +117,7 @@ export default async (request: Request): Promise<Response> => {
         templateVariables: builtTemplate.variables,
         audienceDefinition: audience,
         recipientCount: recipients.length,
-        estimatedMetaCostUsd: estimatedMetaCostUsd.toFixed(2),
+        estimatedMetaCostUsd: estimatedMetaCostUsd.toFixed(4),
         venuePriceUsd: venuePriceUsd.toFixed(2),
         scheduledAt,
       })
@@ -130,7 +130,9 @@ export default async (request: Request): Promise<Response> => {
           guestId: recipient.id,
           phoneNumber: recipient.normalizedPhoneNumber!,
           status: "pending" as const,
-          estimatedCostUsd: estimatedCostPerMessageUsd.toFixed(4),
+          estimatedCostUsd: getMarketingMessageCost(
+            recipient.countryCode,
+          ).toFixed(4),
           templateVariables: {
             ...builtTemplate.variables,
             customer_name: recipient.firstName || "there",
@@ -144,6 +146,8 @@ export default async (request: Request): Promise<Response> => {
         ok: true,
         campaign,
         recipientCount: recipients.length,
+        costBreakdown,
+        estimatedMetaCostUsd,
       },
       {
         status: 201,

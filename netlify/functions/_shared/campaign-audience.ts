@@ -33,6 +33,7 @@ export type CampaignAudienceGuest = {
   lastName: string | null;
   phoneNumber: string | null;
   normalizedPhoneNumber: string | null;
+  countryCode: string | null;
   accommodationName: string | null;
   arrivalDate: Date | null;
   departureDate: Date | null;
@@ -118,6 +119,7 @@ export async function findCampaignAudience(
       lastName: guests.lastName,
       phoneNumber: guests.phoneNumber,
       normalizedPhoneNumber: guests.normalizedPhoneNumber,
+      countryCode: guests.countryCode,
       accommodationName: guestStays.accommodationName,
       arrivalDate: guestStays.arrivalDate,
       departureDate: guestStays.departureDate,

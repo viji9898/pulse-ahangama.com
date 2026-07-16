@@ -171,7 +171,7 @@ export const campaigns = pgTable(
 
     estimatedMetaCostUsd: numeric("estimated_meta_cost_usd", {
       precision: 12,
-      scale: 2,
+      scale: 4,
     })
       .default("0")
       .notNull(),
