@@ -18,6 +18,11 @@ export type CampaignContent =
       link: string;
     }
   | {
+      type: "ahangama_guide";
+      heroImage: string;
+      guideLink: string;
+    }
+  | {
       type: "venue_feature";
       venueName: string;
       description: string;

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_type" ADD VALUE 'ahangama_guide' BEFORE 'venue_feature';

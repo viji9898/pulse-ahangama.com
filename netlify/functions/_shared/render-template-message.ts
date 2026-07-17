@@ -52,5 +52,25 @@ export function renderTemplateMessage(input: {
     ].join("\n");
   }
 
+  if (templateName === "ahangama_guide_2026_27") {
+    return [
+      "The Ahangama Guide 2026/27",
+      "",
+      `Hi 👋 ${variables.customer_name || "there"}`,
+      "Welcome to Ahangama!",
+      "",
+      "We’ve put together our 2026/27 Ahangama Guide, a curated collection of our favourite cafés, stays, wellness spots, restaurants, surf breaks and local experiences.",
+      "",
+      "Everything is personally recommended by our local team to help you make the most of your stay.",
+      "",
+      "👇 Tap below to explore.",
+      "",
+      "The Ahangama Guide 2026/27 Season Curated by locals",
+      "",
+      "Open the Guide: https://ahangama.com/guide?utm_source=whatsapp&utm_medium=message&utm_campaign=ahangama_guide_2026_27&utm_content=broadcast_v1",
+      "Get Recommendations",
+    ].join("\n");
+  }
+
   return `[Template: ${templateName}]`;
 }

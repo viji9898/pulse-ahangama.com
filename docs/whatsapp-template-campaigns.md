@@ -96,9 +96,9 @@ For fixed templates, use a read-only confirmation card plus hidden fields for st
 
 ## 8. Header Media Check
 
-If the Meta template header image is fixed in Meta, no WhatsApp client change is required.
+For approved templates with an `IMAGE` header, send a matching `header` component from `netlify/functions/_shared/whatsapp-client.ts`. The image uploaded in Meta is the review/example asset; live sends still need a public image URL or uploaded media ID.
 
-If the template expects a dynamic header image parameter, extend `sendNamedTemplateMessage` in `netlify/functions/_shared/whatsapp-client.ts` to support header media components before sending.
+Add the URL mapping in `getTemplateHeaderImageUrl` in `netlify/functions/_shared/campaign-template-builder.ts`, then verify a direct test send before deployment. Prefer a stable Ahangama/Pulse-hosted URL over Meta's example URL.
 
 ## 9. Validate End to End
 

@@ -11,11 +11,18 @@ export type BuiltCampaignTemplate = {
 export const FEATURED_CAFES_HEADER_IMAGE_URL =
   "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-demo/featured_cafes_header.jpg";
 
+export const AHANGAMA_GUIDE_HEADER_IMAGE_URL =
+  "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-demo/ahangama_guide_2026%3A27.jpg";
+
 export function getTemplateHeaderImageUrl(
   templateName: string,
 ): string | undefined {
   if (templateName === "featured_cafes") {
     return FEATURED_CAFES_HEADER_IMAGE_URL;
+  }
+
+  if (templateName === "ahangama_guide_2026_27") {
+    return AHANGAMA_GUIDE_HEADER_IMAGE_URL;
   }
 
   return undefined;
@@ -109,6 +116,33 @@ export function buildCampaignTemplate(
           "",
           "Eats Ahangama Guide: https://ahangama.com/eat",
           "Best Cafes - Google Maps: https://maps.app.goo.gl/UVcgCofbwbGrprxv9",
+        ].join("\n"),
+      };
+
+    case "ahangama_guide":
+      return {
+        templateName: "ahangama_guide_2026_27",
+        languageCode: "en",
+        headerImageUrl: AHANGAMA_GUIDE_HEADER_IMAGE_URL,
+        variables: {
+          customer_name: "there",
+        },
+        preview: [
+          "The Ahangama Guide 2026/27",
+          "",
+          "Hi 👋 there",
+          "Welcome to Ahangama!",
+          "",
+          "We’ve put together our 2026/27 Ahangama Guide, a curated collection of our favourite cafés, stays, wellness spots, restaurants, surf breaks and local experiences.",
+          "",
+          "Everything is personally recommended by our local team to help you make the most of your stay.",
+          "",
+          "👇 Tap below to explore.",
+          "",
+          "The Ahangama Guide 2026/27 Season Curated by locals",
+          "",
+          "Open the Guide: https://ahangama.com/guide?utm_source=whatsapp&utm_medium=message&utm_campaign=ahangama_guide_2026_27&utm_content=broadcast_v1",
+          "Get Recommendations",
         ].join("\n"),
       };
 
