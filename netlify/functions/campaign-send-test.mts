@@ -12,6 +12,7 @@ import {
 } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 import { getTemplate } from "./_shared/meta-templates.js";
+import { getTemplateHeaderImageUrl } from "./_shared/campaign-template-builder.js";
 import { renderTemplateMessage } from "./_shared/render-template-message.js";
 import { resolveGuestConversation } from "./_shared/resolve-guest-conversation.js";
 import { sendNamedTemplateMessage } from "./_shared/whatsapp-client.js";
@@ -162,6 +163,7 @@ export default async (request: Request): Promise<Response> => {
       templateName: campaign.templateName,
       variables,
     });
+    const headerImageUrl = getTemplateHeaderImageUrl(campaign.templateName);
 
     const [pendingMessage] = await db
       .insert(messages)
@@ -177,6 +179,7 @@ export default async (request: Request): Promise<Response> => {
         providerPayload: {
           templateName: campaign.templateName,
           languageCode: campaign.templateLanguage,
+          headerImageUrl,
           variables,
           testRunId: testRun.id,
         },
@@ -189,6 +192,7 @@ export default async (request: Request): Promise<Response> => {
         templateName: campaign.templateName,
         languageCode: campaign.templateLanguage,
         variables,
+        headerImageUrl,
       });
 
       const providerMessageId = result.messages?.[0]?.id;
@@ -208,6 +212,7 @@ export default async (request: Request): Promise<Response> => {
           providerPayload: {
             templateName: campaign.templateName,
             languageCode: campaign.templateLanguage,
+            headerImageUrl,
             variables,
             metaResponse: result,
             testRunId: testRun.id,
@@ -251,6 +256,7 @@ export default async (request: Request): Promise<Response> => {
           providerPayload: {
             error: errorMessage,
             templateName: campaign.templateName,
+            headerImageUrl,
             variables,
             testRunId: testRun.id,
           },

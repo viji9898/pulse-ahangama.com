@@ -26,6 +26,12 @@ export const venueFeatureContentSchema = z.object({
   url: urlSchema,
 });
 
+export const featuredCafesContentSchema = z.object({
+  type: z.literal("featured_cafes"),
+  heroImage: z.string().min(1),
+  link: urlSchema,
+});
+
 export const wellnessPickContentSchema = z.object({
   type: z.literal("wellness_pick"),
   venueName: z.string().min(2).max(120),
@@ -36,6 +42,7 @@ export const wellnessPickContentSchema = z.object({
 
 export const campaignContentSchema = z.discriminatedUnion("type", [
   whatsOnContentSchema,
+  featuredCafesContentSchema,
   venueFeatureContentSchema,
   wellnessPickContentSchema,
 ]);

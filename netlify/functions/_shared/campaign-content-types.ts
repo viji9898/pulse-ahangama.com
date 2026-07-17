@@ -13,6 +13,11 @@ export type CampaignContent =
       events: [WhatsOnEvent, WhatsOnEvent, WhatsOnEvent];
     }
   | {
+      type: "featured_cafes";
+      heroImage: string;
+      link: string;
+    }
+  | {
       type: "venue_feature";
       venueName: string;
       description: string;

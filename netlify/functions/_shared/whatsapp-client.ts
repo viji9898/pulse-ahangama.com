@@ -99,7 +99,34 @@ export async function sendNamedTemplateMessage(input: {
   templateName: string;
   languageCode: string;
   variables: Record<string, string>;
+  headerImageUrl?: string;
 }): Promise<MetaMessageResponse> {
+  const components = [
+    ...(input.headerImageUrl
+      ? [
+          {
+            type: "header",
+            parameters: [
+              {
+                type: "image",
+                image: {
+                  link: input.headerImageUrl,
+                },
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      type: "body",
+      parameters: Object.entries(input.variables).map(([name, value]) => ({
+        type: "text",
+        parameter_name: name,
+        text: value,
+      })),
+    },
+  ];
+
   return sendMessage({
     messaging_product: "whatsapp",
     recipient_type: "individual",
@@ -110,16 +137,7 @@ export async function sendNamedTemplateMessage(input: {
       language: {
         code: input.languageCode,
       },
-      components: [
-        {
-          type: "body",
-          parameters: Object.entries(input.variables).map(([name, value]) => ({
-            type: "text",
-            parameter_name: name,
-            text: value,
-          })),
-        },
-      ],
+      components,
     },
   });
 }

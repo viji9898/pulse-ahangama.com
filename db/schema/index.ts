@@ -41,6 +41,7 @@ export const campaignStatusEnum = pgEnum("campaign_status", [
 
 export const campaignTypeEnum = pgEnum("campaign_type", [
   "whats_on_today",
+  "featured_cafes",
   "venue_feature",
   "wellness_pick",
 ]);
@@ -133,6 +134,11 @@ export const campaigns = pgTable(
                 url?: string;
               },
             ];
+          }
+        | {
+            type: "featured_cafes";
+            heroImage: string;
+            link: string;
           }
         | {
             type: "venue_feature";

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_type" ADD VALUE 'featured_cafes' BEFORE 'venue_feature';

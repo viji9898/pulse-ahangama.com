@@ -20,6 +20,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import FeaturedCafesForm from "./content/FeaturedCafesForm";
 import VenueFeatureForm from "./content/VenueFeatureForm";
 import WellnessPickForm from "./content/WellnessPickForm";
 import WhatsOnTodayForm from "./content/WhatsOnTodayForm";
@@ -71,7 +72,11 @@ function formatUsd(value: number, precision = 4): string {
 
 type CampaignFormValues = {
   name: string;
-  campaignType: "whats_on_today" | "venue_feature" | "wellness_pick";
+  campaignType:
+    | "whats_on_today"
+    | "featured_cafes"
+    | "venue_feature"
+    | "wellness_pick";
   content: Record<string, unknown>;
   interests?: string[];
   accommodationName?: string;
@@ -326,6 +331,10 @@ export default function CampaignComposerDrawer({
                 value: "whats_on_today",
               },
               {
+                label: "Featured Cafés",
+                value: "featured_cafes",
+              },
+              {
                 label: "Venue Feature",
                 value: "venue_feature",
               },
@@ -343,6 +352,8 @@ export default function CampaignComposerDrawer({
         </Form.Item>
 
         {campaignType === "whats_on_today" && <WhatsOnTodayForm />}
+
+  {campaignType === "featured_cafes" && <FeaturedCafesForm />}
 
         {campaignType === "venue_feature" && <VenueFeatureForm />}
 
