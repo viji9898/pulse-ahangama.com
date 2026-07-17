@@ -83,6 +83,12 @@ const contacts = [
     email: null,
     countryCode: "EG",
   },
+  {
+    firstName: "Courtney",
+    phoneNumber: "27718682508",
+    email: null,
+    countryCode: "ZA",
+  },
 ];
 
 function normalizePhoneNumber(value: string): string {

@@ -4,12 +4,14 @@ export const WHATSAPP_PRICING = {
     GB: 0.0635,
     EG: 0.0644,
     IN: 0.0118,
+    ZA: 0.0379,
   },
   utility: {
     LK: 0,
     GB: 0,
     EG: 0,
     IN: 0,
+    ZA: 0,
   },
 } as const;
 
