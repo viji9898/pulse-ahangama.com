@@ -47,6 +47,11 @@ export const campaignTypeEnum = pgEnum("campaign_type", [
   "wellness_pick",
 ]);
 
+export const whatsappSenderEnum = pgEnum("whatsapp_sender", [
+  "ahangama",
+  "ahangama_pass",
+]);
+
 export const guests = pgTable(
   "guests",
   {
@@ -96,6 +101,9 @@ export const campaigns = pgTable(
     channel: messageChannelEnum("channel").notNull(),
     status: campaignStatusEnum("status").default("draft").notNull(),
     campaignType: campaignTypeEnum("campaign_type").notNull(),
+    whatsappSenderKey: whatsappSenderEnum("whatsapp_sender_key")
+      .default("ahangama")
+      .notNull(),
 
     venueId: uuid("venue_id").references(() => venues.id),
 

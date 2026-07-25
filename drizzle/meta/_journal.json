@@ -71,6 +71,13 @@
       "when": 1784290855719,
       "tag": "0009_conscious_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784990658073,
+      "tag": "0010_secret_speed",
+      "breakpoints": true
     }
   ]
 }

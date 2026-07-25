@@ -179,6 +179,7 @@ export default async (request: Request): Promise<Response> => {
         providerPayload: {
           templateName: campaign.templateName,
           languageCode: campaign.templateLanguage,
+          senderKey: campaign.whatsappSenderKey,
           headerImageUrl,
           variables,
           testRunId: testRun.id,
@@ -193,6 +194,7 @@ export default async (request: Request): Promise<Response> => {
         languageCode: campaign.templateLanguage,
         variables,
         headerImageUrl,
+        senderKey: campaign.whatsappSenderKey,
       });
 
       const providerMessageId = result.messages?.[0]?.id;
@@ -212,6 +214,7 @@ export default async (request: Request): Promise<Response> => {
           providerPayload: {
             templateName: campaign.templateName,
             languageCode: campaign.templateLanguage,
+            senderKey: campaign.whatsappSenderKey,
             headerImageUrl,
             variables,
             metaResponse: result,

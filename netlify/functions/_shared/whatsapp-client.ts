@@ -1,5 +1,11 @@
 import { env } from "./env.js";
 
+export type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
+
+type WhatsAppSenderInput = {
+  senderKey?: WhatsAppSenderKey | null;
+};
+
 type MetaMessageResponse = {
   messaging_product?: string;
   contacts?: Array<{
@@ -29,13 +35,22 @@ function normalizePhoneNumber(phoneNumber: string): string {
   return normalized;
 }
 
+function getPhoneNumberId(senderKey: WhatsAppSenderKey = "ahangama"): string {
+  if (senderKey === "ahangama_pass") {
+    return env.whatsappPhoneNumberIdAhangamaPass;
+  }
+
+  return env.whatsappPhoneNumberId;
+}
+
 async function sendMessage(
   payload: Record<string, unknown>,
+  senderKey?: WhatsAppSenderKey | null,
 ): Promise<MetaMessageResponse> {
   const endpoint =
     `https://graph.facebook.com/` +
     `${env.metaGraphApiVersion}/` +
-    `${env.whatsappPhoneNumberId}/messages`;
+    `${getPhoneNumberId(senderKey ?? "ahangama")}/messages`;
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -62,36 +77,42 @@ async function sendMessage(
 export async function sendTextMessage(input: {
   to: string;
   body: string;
-}): Promise<MetaMessageResponse> {
-  return sendMessage({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: normalizePhoneNumber(input.to),
-    type: "text",
-    text: {
-      preview_url: false,
-      body: input.body,
+} & WhatsAppSenderInput): Promise<MetaMessageResponse> {
+  return sendMessage(
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhoneNumber(input.to),
+      type: "text",
+      text: {
+        preview_url: false,
+        body: input.body,
+      },
     },
-  });
+    input.senderKey,
+  );
 }
 
 export async function sendTemplateMessage(input: {
   to: string;
   templateName?: string;
   languageCode?: string;
-}): Promise<MetaMessageResponse> {
-  return sendMessage({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: normalizePhoneNumber(input.to),
-    type: "template",
-    template: {
-      name: input.templateName ?? "hello_world",
-      language: {
-        code: input.languageCode ?? "en_US",
+} & WhatsAppSenderInput): Promise<MetaMessageResponse> {
+  return sendMessage(
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhoneNumber(input.to),
+      type: "template",
+      template: {
+        name: input.templateName ?? "hello_world",
+        language: {
+          code: input.languageCode ?? "en_US",
+        },
       },
     },
-  });
+    input.senderKey,
+  );
 }
 
 export async function sendNamedTemplateMessage(input: {
@@ -100,7 +121,7 @@ export async function sendNamedTemplateMessage(input: {
   languageCode: string;
   variables: Record<string, string>;
   headerImageUrl?: string;
-}): Promise<MetaMessageResponse> {
+} & WhatsAppSenderInput): Promise<MetaMessageResponse> {
   const components = [
     ...(input.headerImageUrl
       ? [
@@ -127,17 +148,20 @@ export async function sendNamedTemplateMessage(input: {
     },
   ];
 
-  return sendMessage({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: normalizePhoneNumber(input.to),
-    type: "template",
-    template: {
-      name: input.templateName,
-      language: {
-        code: input.languageCode,
+  return sendMessage(
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhoneNumber(input.to),
+      type: "template",
+      template: {
+        name: input.templateName,
+        language: {
+          code: input.languageCode,
+        },
+        components,
       },
-      components,
     },
-  });
+    input.senderKey,
+  );
 }

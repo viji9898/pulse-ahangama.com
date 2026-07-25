@@ -17,6 +17,10 @@ export const env = {
     return required("WHATSAPP_PHONE_NUMBER_ID");
   },
 
+  get whatsappPhoneNumberIdAhangamaPass() {
+    return required("WHATSAPP_PHONE_NUMBER_ID_AHANGAMA_PASS");
+  },
+
   get whatsappWabaId() {
     return required("WHATSAPP_WABA_ID");
   },

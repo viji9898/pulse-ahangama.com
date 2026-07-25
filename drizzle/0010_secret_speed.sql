@@ -1,0 +1,2 @@
+CREATE TYPE "public"."whatsapp_sender" AS ENUM('ahangama', 'ahangama_pass');--> statement-breakpoint
+ALTER TABLE "campaigns" ADD COLUMN "whatsapp_sender_key" "whatsapp_sender" DEFAULT 'ahangama' NOT NULL;

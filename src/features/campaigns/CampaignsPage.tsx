@@ -19,11 +19,19 @@ import dayjs, { type Dayjs } from "dayjs";
 import { useEffect, useState } from "react";
 import CampaignComposerDrawer from "./CampaignComposerDrawer.tsx";
 
+type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
+
+const whatsappSenderLabels: Record<WhatsAppSenderKey, string> = {
+  ahangama: "Ahangama",
+  ahangama_pass: "Ahangama Pass",
+};
+
 type Campaign = {
   id: string;
   name: string;
   status: "draft" | "scheduled" | "sending" | "completed" | "cancelled";
   channel: string;
+  whatsappSenderKey: WhatsAppSenderKey;
   templateName: string | null;
   recipientCount: number;
   estimatedMetaCostUsd: string;
@@ -425,6 +433,9 @@ export default function CampaignsPage() {
             <Descriptions column={1} size="small">
               <Descriptions.Item label="Template">
                 {selectedCampaign.templateName || "—"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Sending number">
+                {whatsappSenderLabels[selectedCampaign.whatsappSenderKey]}
               </Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag>{selectedCampaign.status}</Tag>

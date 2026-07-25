@@ -60,6 +60,8 @@ type ContentPreviewResponse = {
   preview: string;
 };
 
+type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
+
 const countryLabels: Record<string, string> = {
   LK: "Sri Lanka",
   GB: "United Kingdom",
@@ -85,6 +87,7 @@ type CampaignFormValues = {
   currentlyStaying: boolean;
   excludeRecentlyMessagedHours?: number;
   venuePriceUsd: number;
+  whatsappSenderKey: WhatsAppSenderKey;
   scheduledAt?: dayjs.Dayjs;
 };
 
@@ -128,6 +131,7 @@ export default function CampaignComposerDrawer({
           currentlyStaying: true,
           excludeRecentlyMessagedHours: 24,
           venuePriceUsd: 75,
+          whatsappSenderKey: "ahangama",
         });
       } else {
         form.resetFields();
@@ -233,6 +237,7 @@ export default function CampaignComposerDrawer({
           content: buildContent(values),
           audience: buildAudience(values),
           venuePriceUsd: values.venuePriceUsd,
+          whatsappSenderKey: values.whatsappSenderKey,
           scheduledAt: values.scheduledAt?.toISOString() ?? null,
         }),
       });
@@ -354,6 +359,25 @@ export default function CampaignComposerDrawer({
               setPreview(null);
               setContentPreview(null);
             }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="whatsappSenderKey"
+          label="Sending number"
+          rules={[{ required: true }]}
+        >
+          <Select
+            options={[
+              {
+                label: "Ahangama",
+                value: "ahangama",
+              },
+              {
+                label: "Ahangama Pass",
+                value: "ahangama_pass",
+              },
+            ]}
           />
         </Form.Item>
 

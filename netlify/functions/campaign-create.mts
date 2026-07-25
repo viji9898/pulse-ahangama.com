@@ -8,10 +8,13 @@ import {
 import type { CampaignContent } from "./_shared/campaign-content-types.js";
 import { buildCampaignTemplate } from "./_shared/campaign-template-builder.js";
 import { campaignContentSchema } from "./_shared/campaign-validation.js";
+import type { WhatsAppSenderKey } from "./_shared/whatsapp-client.js";
 import {
   calculateMarketingCostBreakdown,
   getMarketingMessageCost,
 } from "../../src/lib/whatsapp-pricing.js";
+
+const whatsappSenderKeys = ["ahangama", "ahangama_pass"] as const;
 
 type RequestBody = {
   name?: string;
@@ -21,6 +24,7 @@ type RequestBody = {
   estimatedCostPerMessageUsd?: number;
   venuePriceUsd?: number;
   content?: CampaignContent;
+  whatsappSenderKey?: WhatsAppSenderKey;
 };
 
 export default async (request: Request): Promise<Response> => {
@@ -77,6 +81,18 @@ export default async (request: Request): Promise<Response> => {
 
   const content = parsedContent.data as CampaignContent;
   const builtTemplate = buildCampaignTemplate(content);
+  const whatsappSenderKey = input.whatsappSenderKey ?? "ahangama";
+
+  if (!whatsappSenderKeys.includes(whatsappSenderKey)) {
+    return Response.json(
+      {
+        error: "Valid WhatsApp sender is required",
+      },
+      {
+        status: 400,
+      },
+    );
+  }
 
   try {
     const audience = input.audience ?? {
@@ -110,6 +126,7 @@ export default async (request: Request): Promise<Response> => {
         channel: "whatsapp",
         status: scheduledAt ? "scheduled" : "draft",
         campaignType: content.type,
+        whatsappSenderKey,
         venueId: input.venueId || null,
         templateName: builtTemplate.templateName,
         templateLanguage: builtTemplate.languageCode,
