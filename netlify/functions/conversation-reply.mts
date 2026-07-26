@@ -2,7 +2,10 @@ import type { Config } from "@netlify/functions";
 import { eq } from "drizzle-orm";
 import { conversations, guests, messages } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
-import { sendTextMessage } from "./_shared/whatsapp-client.js";
+import {
+  getWhatsAppSenderKey,
+  sendTextMessage,
+} from "./_shared/whatsapp-client.js";
 
 type RequestBody = {
   conversationId?: string;
@@ -47,6 +50,7 @@ export default async (request: Request): Promise<Response> => {
       id: conversations.id,
       guestId: guests.id,
       phoneNumber: guests.phoneNumber,
+      whatsappPhoneNumberId: conversations.whatsappPhoneNumberId,
       serviceWindowEndsAt: conversations.serviceWindowEndsAt,
     })
     .from(conversations)
@@ -88,6 +92,7 @@ export default async (request: Request): Promise<Response> => {
       channel: "whatsapp",
       direction: "outbound",
       status: "queued",
+      whatsappPhoneNumberId: conversation.whatsappPhoneNumberId,
       messageType: "text",
       body: messageBody,
       providerPayload: {},
@@ -95,9 +100,13 @@ export default async (request: Request): Promise<Response> => {
     .returning();
 
   try {
+    const senderKey = getWhatsAppSenderKey(
+      conversation.whatsappPhoneNumberId,
+    );
     const result = await sendTextMessage({
       to: conversation.phoneNumber,
       body: messageBody,
+      senderKey,
     });
 
     const providerMessageId = result.messages?.[0]?.id;

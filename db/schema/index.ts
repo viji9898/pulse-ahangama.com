@@ -262,6 +262,9 @@ export const conversations = pgTable(
     unreadCount: integer("unread_count").default(0).notNull(),
     assignedTo: varchar("assigned_to", { length: 255 }),
     status: varchar("status", { length: 30 }).default("open").notNull(),
+    whatsappPhoneNumberId: varchar("whatsapp_phone_number_id", {
+      length: 100,
+    }),
 
     lastMessagePreview: text("last_message_preview"),
     lastMessageAt: timestamp("last_message_at", {
@@ -303,6 +306,9 @@ export const messages = pgTable(
     direction: messageDirectionEnum("direction").notNull(),
     status: messageStatusEnum("status").default("queued").notNull(),
     providerMessageId: varchar("provider_message_id", { length: 255 }),
+    whatsappPhoneNumberId: varchar("whatsapp_phone_number_id", {
+      length: 100,
+    }),
     messageType: varchar("message_type", { length: 50 }).notNull(),
     body: text("body"),
     providerPayload: jsonb("provider_payload")

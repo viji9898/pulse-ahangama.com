@@ -10,6 +10,7 @@ import {
 import { db } from "./_shared/db.js";
 import { env } from "./_shared/env.js";
 import { resolveConversation } from "./_shared/resolve-conversation.js";
+import { getWhatsAppSenderKey } from "./_shared/whatsapp-client.js";
 import type { WhatsAppWebhookPayload } from "./_shared/whatsapp-types.js";
 
 function json(data: unknown, status = 200): Response {
@@ -96,6 +97,7 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
         const { guest, conversation } = await resolveConversation({
           phoneNumber: incomingMessage.from,
           profileName,
+          whatsappPhoneNumberId: phoneNumberId,
         });
 
         console.log("Resolved WhatsApp conversation", {
@@ -120,6 +122,7 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
             direction: "inbound",
             status: "delivered",
             providerMessageId: incomingMessage.id,
+            whatsappPhoneNumberId: phoneNumberId,
             messageType: incomingMessage.type || "unknown",
             body: messageBody,
             deliveredAt: messageTimestamp,
@@ -138,6 +141,7 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
             .update(conversations)
             .set({
               status: "open",
+              whatsappPhoneNumberId: phoneNumberId,
               lastMessagePreview: messageBody.slice(0, 250),
               lastMessageAt: messageTimestamp,
               serviceWindowEndsAt: new Date(
@@ -149,6 +153,10 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
               updatedAt: new Date(),
             })
             .where(eq(conversations.id, conversation.id));
+
+          console.log("Inbound WhatsApp account resolved", {
+            senderKey: getWhatsAppSenderKey(phoneNumberId),
+          });
         }
       }
 

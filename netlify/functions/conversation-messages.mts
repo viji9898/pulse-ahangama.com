@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { asc, eq } from "drizzle-orm";
 import { conversations, guests, messages } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
+import { getWhatsAppSenderKey } from "./_shared/whatsapp-client.js";
 
 export default async (request: Request): Promise<Response> => {
   if (request.method !== "GET") {
@@ -39,6 +40,7 @@ export default async (request: Request): Promise<Response> => {
         lastMessagePreview: conversations.lastMessagePreview,
         lastMessageAt: conversations.lastMessageAt,
         serviceWindowEndsAt: conversations.serviceWindowEndsAt,
+        whatsappPhoneNumberId: conversations.whatsappPhoneNumberId,
       })
       .from(conversations)
       .innerJoin(guests, eq(conversations.guestId, guests.id))
@@ -63,8 +65,17 @@ export default async (request: Request): Promise<Response> => {
       .orderBy(asc(messages.createdAt));
 
     return Response.json({
-      conversation,
-      messages: results,
+      conversation: {
+        ...conversation,
+        whatsappSenderKey: getWhatsAppSenderKey(
+          conversation.whatsappPhoneNumberId,
+        ),
+        whatsappPhoneNumberId: undefined,
+      },
+      messages: results.map(({ whatsappPhoneNumberId, ...message }) => ({
+        ...message,
+        whatsappSenderKey: getWhatsAppSenderKey(whatsappPhoneNumberId),
+      })),
     });
   } catch (error) {
     console.error("Conversation messages failed", error);

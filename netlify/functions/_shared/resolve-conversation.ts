@@ -5,11 +5,13 @@ import { db } from "./db.js";
 type ResolveConversationInput = {
   phoneNumber: string;
   profileName?: string;
+  whatsappPhoneNumberId?: string;
 };
 
 export async function resolveConversation({
   phoneNumber,
   profileName,
+  whatsappPhoneNumberId,
 }: ResolveConversationInput) {
   const normalizedPhoneNumber = phoneNumber.replace(/\D/g, "");
 
@@ -42,6 +44,12 @@ export async function resolveConversation({
       and(
         eq(conversations.guestId, guest.id),
         eq(conversations.channel, "whatsapp"),
+        whatsappPhoneNumberId
+          ? eq(
+              conversations.whatsappPhoneNumberId,
+              whatsappPhoneNumberId,
+            )
+          : undefined,
       ),
     )
     .limit(1);
@@ -55,6 +63,7 @@ export async function resolveConversation({
         guestId: guest.id,
         channel: "whatsapp",
         status: "open",
+        whatsappPhoneNumberId,
       })
       .returning();
 

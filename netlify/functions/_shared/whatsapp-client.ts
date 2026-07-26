@@ -35,12 +35,28 @@ function normalizePhoneNumber(phoneNumber: string): string {
   return normalized;
 }
 
-function getPhoneNumberId(senderKey: WhatsAppSenderKey = "ahangama"): string {
+export function getWhatsAppPhoneNumberId(
+  senderKey: WhatsAppSenderKey = "ahangama",
+): string {
   if (senderKey === "ahangama_pass") {
     return env.whatsappPhoneNumberIdAhangamaPass;
   }
 
   return env.whatsappPhoneNumberId;
+}
+
+export function getWhatsAppSenderKey(
+  phoneNumberId?: string | null,
+): WhatsAppSenderKey | null {
+  if (phoneNumberId === env.whatsappPhoneNumberId) {
+    return "ahangama";
+  }
+
+  if (phoneNumberId === env.whatsappPhoneNumberIdAhangamaPass) {
+    return "ahangama_pass";
+  }
+
+  return null;
 }
 
 async function sendMessage(
@@ -50,7 +66,7 @@ async function sendMessage(
   const endpoint =
     `https://graph.facebook.com/` +
     `${env.metaGraphApiVersion}/` +
-    `${getPhoneNumberId(senderKey ?? "ahangama")}/messages`;
+    `${getWhatsAppPhoneNumberId(senderKey ?? "ahangama")}/messages`;
 
   const response = await fetch(endpoint, {
     method: "POST",

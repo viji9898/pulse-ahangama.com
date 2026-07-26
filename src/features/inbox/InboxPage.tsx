@@ -10,6 +10,7 @@ import {
   List,
   message as antMessage,
   Modal,
+  Segmented,
   Space,
   Spin,
   Tag,
@@ -25,6 +26,19 @@ import { useCallback, useEffect, useState } from "react";
 const { Sider, Content } = Layout;
 const { TextArea } = Input;
 
+type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
+type SenderFilter = "all" | WhatsAppSenderKey;
+
+const whatsappSenderLabels: Record<WhatsAppSenderKey, string> = {
+  ahangama: "Ahangama",
+  ahangama_pass: "Ahangama Pass",
+};
+
+const whatsappSenderColors: Record<WhatsAppSenderKey, string> = {
+  ahangama: "blue",
+  ahangama_pass: "cyan",
+};
+
 type ConversationSummary = {
   id: string;
   guestId: string;
@@ -35,6 +49,7 @@ type ConversationSummary = {
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
   serviceWindowEndsAt: string | null;
+  whatsappSenderKey: WhatsAppSenderKey | null;
 };
 
 type MessageRecord = {
@@ -43,6 +58,7 @@ type MessageRecord = {
   status: string;
   body: string | null;
   createdAt: string;
+  whatsappSenderKey: WhatsAppSenderKey | null;
 };
 
 type ConversationDetail = {
@@ -84,10 +100,15 @@ export default function InboxPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [contact, setContact] = useState<GuestContactDetail | null>(null);
   const [loadingContact, setLoadingContact] = useState(false);
+  const [senderFilter, setSenderFilter] = useState<SenderFilter>("all");
   const [now] = useState(() => Date.now());
 
   const loadInbox = useCallback(async () => {
-    const response = await fetch("/api/inbox");
+    const query =
+      senderFilter === "all"
+        ? ""
+        : `?sender=${encodeURIComponent(senderFilter)}`;
+    const response = await fetch(`/api/inbox${query}`);
 
     if (!response.ok) {
       throw new Error("Unable to load inbox");
@@ -99,10 +120,12 @@ export default function InboxPage() {
 
     setConversations(data.conversations);
 
-    if (!selectedId && data.conversations[0]) {
-      setSelectedId(data.conversations[0].id);
-    }
-  }, [selectedId]);
+    setSelectedId((current) =>
+      current && data.conversations.some((item) => item.id === current)
+        ? current
+        : (data.conversations[0]?.id ?? null),
+    );
+  }, [senderFilter]);
 
   const loadConversation = useCallback(async (id: string) => {
     setLoadingConversation(true);
@@ -276,6 +299,18 @@ export default function InboxPage() {
           <Typography.Title level={3} style={{ margin: 0 }}>
             Inbox
           </Typography.Title>
+
+          <Segmented
+            block
+            value={senderFilter}
+            options={[
+              { label: "All", value: "all" },
+              { label: "Ahangama", value: "ahangama" },
+              { label: "Pass", value: "ahangama_pass" },
+            ]}
+            onChange={(value) => setSenderFilter(value as SenderFilter)}
+            style={{ marginTop: 16 }}
+          />
         </div>
 
         <List
@@ -305,7 +340,25 @@ export default function InboxPage() {
                       <Avatar>{name.charAt(0).toUpperCase()}</Avatar>
                     </Badge>
                   }
-                  title={name}
+                  title={
+                    <Space size={6} wrap>
+                      <span>{name}</span>
+                      {conversation.whatsappSenderKey ? (
+                        <Tag
+                          color={
+                            whatsappSenderColors[
+                              conversation.whatsappSenderKey
+                            ]
+                          }
+                          style={{ marginInlineEnd: 0 }}
+                        >
+                          {whatsappSenderLabels[
+                            conversation.whatsappSenderKey
+                          ]}
+                        </Tag>
+                      ) : null}
+                    </Space>
+                  }
                   description={conversation.lastMessagePreview}
                 />
               </List.Item>
@@ -351,6 +404,20 @@ export default function InboxPage() {
                   <Tag color="orange">Template required</Tag>
                 )}
 
+                {detail.conversation.whatsappSenderKey ? (
+                  <Tag
+                    color={
+                      whatsappSenderColors[
+                        detail.conversation.whatsappSenderKey
+                      ]
+                    }
+                  >
+                    {whatsappSenderLabels[
+                      detail.conversation.whatsappSenderKey
+                    ]}
+                  </Tag>
+                ) : null}
+
                 <Button
                   icon={<ContactsOutlined />}
                   onClick={() => void openContact(detail.conversation.guestId)}
@@ -393,15 +460,30 @@ export default function InboxPage() {
                     </Typography.Text>
 
                     <div style={{ marginTop: 4 }}>
-                      <Typography.Text
-                        type="secondary"
-                        style={{ fontSize: 11 }}
-                      >
-                        {new Date(item.createdAt).toLocaleString()}
-                        {item.direction === "outbound"
-                          ? ` · ${item.status}`
-                          : ""}
-                      </Typography.Text>
+                      <Space size={4} wrap>
+                        <Typography.Text
+                          type="secondary"
+                          style={{ fontSize: 11 }}
+                        >
+                          {new Date(item.createdAt).toLocaleString()}
+                          {item.direction === "outbound"
+                            ? ` · ${item.status}`
+                            : ""}
+                        </Typography.Text>
+                        {item.whatsappSenderKey ? (
+                          <Tag
+                            color={whatsappSenderColors[item.whatsappSenderKey]}
+                            style={{
+                              marginInlineEnd: 0,
+                              fontSize: 10,
+                              lineHeight: "16px",
+                            }}
+                          >
+                            {item.direction === "inbound" ? "To" : "From"}{" "}
+                            {whatsappSenderLabels[item.whatsappSenderKey]}
+                          </Tag>
+                        ) : null}
+                      </Space>
                     </div>
                   </div>
                 </div>
