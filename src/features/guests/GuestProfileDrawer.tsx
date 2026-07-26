@@ -65,7 +65,7 @@ export default function GuestProfileDrawer({ guestId, open, onClose }: Props) {
 
       try {
         const response = await fetch(
-          `/api/guest?guestId=${encodeURIComponent(guestId!)}`,
+          `/api/guest-detail?guestId=${encodeURIComponent(guestId!)}`,
         );
 
         if (!response.ok) {

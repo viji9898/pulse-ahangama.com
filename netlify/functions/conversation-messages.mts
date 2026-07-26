@@ -31,6 +31,7 @@ export default async (request: Request): Promise<Response> => {
     const [conversation] = await db
       .select({
         id: conversations.id,
+        guestId: guests.id,
         firstName: guests.firstName,
         lastName: guests.lastName,
         phoneNumber: guests.phoneNumber,

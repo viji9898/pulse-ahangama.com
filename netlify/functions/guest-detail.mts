@@ -76,5 +76,5 @@ export default async (request: Request): Promise<Response> => {
 };
 
 export const config: Config = {
-  path: "/api/guest",
+  path: "/api/guest-detail",
 };

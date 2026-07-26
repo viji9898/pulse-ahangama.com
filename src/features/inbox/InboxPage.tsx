@@ -2,17 +2,24 @@ import {
   Avatar,
   Badge,
   Button,
+  Descriptions,
+  Divider,
   Empty,
   Input,
   Layout,
   List,
   message as antMessage,
+  Modal,
   Space,
   Spin,
   Tag,
   Typography,
 } from "antd";
-import { SendOutlined } from "@ant-design/icons";
+import {
+  ContactsOutlined,
+  CopyOutlined,
+  SendOutlined,
+} from "@ant-design/icons";
 import { useCallback, useEffect, useState } from "react";
 
 const { Sider, Content } = Layout;
@@ -20,6 +27,7 @@ const { TextArea } = Input;
 
 type ConversationSummary = {
   id: string;
+  guestId: string;
   firstName: string | null;
   lastName: string | null;
   phoneNumber: string | null;
@@ -42,6 +50,29 @@ type ConversationDetail = {
   messages: MessageRecord[];
 };
 
+type GuestContactDetail = {
+  guest: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    phoneNumber: string | null;
+    countryCode: string | null;
+    whatsappOptIn: boolean;
+    emailOptIn: boolean;
+  };
+  stays: Array<{
+    id: string;
+    accommodationName: string | null;
+    arrivalDate: string | null;
+    departureDate: string | null;
+    source: string | null;
+  }>;
+  interests: Array<{
+    id: string;
+    interest: string;
+  }>;
+};
+
 export default function InboxPage() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,6 +81,9 @@ export default function InboxPage() {
   const [loadingInbox, setLoadingInbox] = useState(true);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [sending, setSending] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contact, setContact] = useState<GuestContactDetail | null>(null);
+  const [loadingContact, setLoadingContact] = useState(false);
   const [now] = useState(() => Date.now());
 
   const loadInbox = useCallback(async () => {
@@ -159,6 +193,65 @@ export default function InboxPage() {
     }
   }
 
+  async function openContact(guestId: string) {
+    setContactOpen(true);
+    setContact(null);
+    setLoadingContact(true);
+
+    try {
+      const response = await fetch(
+        `/api/guest-detail?guestId=${encodeURIComponent(guestId)}`,
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to load contact details");
+      }
+
+      setContact((await response.json()) as GuestContactDetail);
+    } catch (error) {
+      antMessage.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to load contact details",
+      );
+    } finally {
+      setLoadingContact(false);
+    }
+  }
+
+  async function copyContactAndMessage() {
+    if (!contact) return;
+
+    const name = [contact.guest.firstName, contact.guest.lastName]
+      .filter(Boolean)
+      .join(" ") || "WhatsApp guest";
+    const latestInboundMessage = [...(detail?.messages ?? [])]
+      .reverse()
+      .find((message) => message.direction === "inbound" && message.body)
+      ?.body?.trim();
+    const contactLines = [
+      "*Contact information*",
+      `*Name:* ${name}`,
+      contact.guest.phoneNumber
+        ? `*Phone:* ${contact.guest.phoneNumber}`
+        : null,
+      contact.guest.email ? `*Email:* ${contact.guest.email}` : null,
+      contact.guest.countryCode
+        ? `*Country:* ${contact.guest.countryCode}`
+        : null,
+      "",
+      "*Message:*",
+      latestInboundMessage || "No inbound message available",
+    ].filter((line): line is string => line !== null);
+
+    try {
+      await navigator.clipboard.writeText(contactLines.join("\n"));
+      antMessage.success("Contact and message copied");
+    } catch {
+      antMessage.error("Unable to copy contact and message");
+    }
+  }
+
   if (loadingInbox) {
     return <Spin />;
   }
@@ -243,7 +336,7 @@ export default function InboxPage() {
                 borderBottom: "1px solid #f0f0f0",
               }}
             >
-              <Space>
+              <Space wrap>
                 <Typography.Title level={4} style={{ margin: 0 }}>
                   {[detail.conversation.firstName, detail.conversation.lastName]
                     .filter(Boolean)
@@ -257,6 +350,13 @@ export default function InboxPage() {
                 ) : (
                   <Tag color="orange">Template required</Tag>
                 )}
+
+                <Button
+                  icon={<ContactsOutlined />}
+                  onClick={() => void openContact(detail.conversation.guestId)}
+                >
+                  Contact info
+                </Button>
               </Space>
             </div>
 
@@ -342,6 +442,122 @@ export default function InboxPage() {
           </>
         ) : null}
       </Content>
+
+      <Modal
+        open={contactOpen}
+        onCancel={() => setContactOpen(false)}
+        footer={
+          <Space>
+            <Button onClick={() => setContactOpen(false)}>Close</Button>
+            <Button
+              type="primary"
+              icon={<CopyOutlined />}
+              loading={loadingContact}
+              disabled={!contact}
+              onClick={() => void copyContactAndMessage()}
+            >
+              Copy contact &amp; message
+            </Button>
+          </Space>
+        }
+        title="Contact details"
+        width={640}
+        destroyOnHidden
+      >
+        {loadingContact ? (
+          <div style={{ display: "grid", placeItems: "center", minHeight: 180 }}>
+            <Spin />
+          </div>
+        ) : contact ? (
+          <>
+            <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered>
+              <Descriptions.Item label="Name" span={2}>
+                {[contact.guest.firstName, contact.guest.lastName]
+                  .filter(Boolean)
+                  .join(" ") || "WhatsApp guest"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Phone">
+                {contact.guest.phoneNumber ? (
+                  <Typography.Link href={`tel:${contact.guest.phoneNumber}`}>
+                    {contact.guest.phoneNumber}
+                  </Typography.Link>
+                ) : (
+                  "Not provided"
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email">
+                {contact.guest.email ? (
+                  <Typography.Link href={`mailto:${contact.guest.email}`}>
+                    {contact.guest.email}
+                  </Typography.Link>
+                ) : (
+                  "Not provided"
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="Country">
+                {contact.guest.countryCode || "Not provided"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Consent">
+                <Space size={4} wrap>
+                  <Tag color={contact.guest.whatsappOptIn ? "green" : "default"}>
+                    WhatsApp {contact.guest.whatsappOptIn ? "on" : "off"}
+                  </Tag>
+                  <Tag color={contact.guest.emailOptIn ? "green" : "default"}>
+                    Email {contact.guest.emailOptIn ? "on" : "off"}
+                  </Tag>
+                </Space>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider plain>
+              Latest stay
+            </Divider>
+
+            {contact.stays[0] ? (
+              <Descriptions column={{ xs: 1, sm: 2 }} size="small">
+                <Descriptions.Item label="Accommodation">
+                  {contact.stays[0].accommodationName || "Not provided"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Source">
+                  {contact.stays[0].source || "Not provided"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Arrival">
+                  {contact.stays[0].arrivalDate
+                    ? new Date(contact.stays[0].arrivalDate).toLocaleDateString()
+                    : "Not provided"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Departure">
+                  {contact.stays[0].departureDate
+                    ? new Date(contact.stays[0].departureDate).toLocaleDateString()
+                    : "Not provided"}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Typography.Text type="secondary">
+                No stay details recorded
+              </Typography.Text>
+            )}
+
+            <Divider plain>
+              Interests
+            </Divider>
+
+            <Space wrap>
+              {contact.interests.length ? (
+                contact.interests.map((item) => (
+                  <Tag key={item.id}>{item.interest}</Tag>
+                ))
+              ) : (
+                <Typography.Text type="secondary">
+                  No interests recorded
+                </Typography.Text>
+              )}
+            </Space>
+          </>
+        ) : (
+          <Empty description="Contact details unavailable" />
+        )}
+      </Modal>
     </Layout>
   );
 }
