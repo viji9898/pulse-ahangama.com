@@ -312,6 +312,14 @@ export const messages = pgTable(
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     readAt: timestamp("read_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
+    emailAlertProcessingAt: timestamp("email_alert_processing_at", {
+      withTimezone: true,
+    }),
+    emailAlertSentAt: timestamp("email_alert_sent_at", {
+      withTimezone: true,
+    }),
+    emailAlertAttempts: integer("email_alert_attempts").default(0).notNull(),
+    emailAlertError: text("email_alert_error"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -321,6 +329,11 @@ export const messages = pgTable(
     index("messages_conversation_idx").on(table.conversationId),
     index("messages_guest_idx").on(table.guestId),
     index("messages_campaign_idx").on(table.campaignId),
+    index("messages_email_alert_idx").on(
+      table.direction,
+      table.emailAlertSentAt,
+      table.emailAlertProcessingAt,
+    ),
   ],
 );
 

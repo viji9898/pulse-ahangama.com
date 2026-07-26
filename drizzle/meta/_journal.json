@@ -78,6 +78,13 @@
       "when": 1784990658073,
       "tag": "0010_secret_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785067587868,
+      "tag": "0011_right_power_man",
+      "breakpoints": true
     }
   ]
 }
