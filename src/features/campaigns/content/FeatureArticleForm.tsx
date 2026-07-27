@@ -1,8 +1,26 @@
-import { Form, Input } from "antd";
+import { Form, Input, Typography } from "antd";
 
 const { TextArea } = Input;
+const exampleArticleUrl =
+  "https://ahangama.com/inside-the-launch-of-ahangama-circle/";
+
+function getButtonUrl(value?: string): string {
+  try {
+    const url = new URL(value || exampleArticleUrl);
+
+    if (url.hostname !== "ahangama.com") {
+      return exampleArticleUrl;
+    }
+
+    return new URL(url.pathname, "https://www.ahangama.com").toString();
+  } catch {
+    return getButtonUrl(exampleArticleUrl);
+  }
+}
 
 export default function FeatureArticleForm() {
+  const articleUrl = Form.useWatch(["content", "articleUrl"]);
+
   return (
     <>
       <Form.Item
@@ -29,7 +47,14 @@ export default function FeatureArticleForm() {
       <Form.Item
         name={["content", "articleUrl"]}
         label="Article URL"
-        extra="Use the canonical ahangama.com URL without tracking parameters."
+        extra={
+          <>
+            <div>Meta link tracking is enabled for this template.</div>
+            <Typography.Text type="secondary">
+              Button URL preview: {getButtonUrl(articleUrl)}
+            </Typography.Text>
+          </>
+        }
         rules={[
           { required: true },
           { type: "url" },
@@ -60,7 +85,7 @@ export default function FeatureArticleForm() {
           },
         ]}
       >
-        <Input placeholder="https://ahangama.com/inside-the-launch-of-ahangama-circle/" />
+        <Input placeholder={exampleArticleUrl} />
       </Form.Item>
     </>
   );

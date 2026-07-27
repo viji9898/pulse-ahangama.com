@@ -14,6 +14,7 @@ import { db } from "./_shared/db.js";
 import { getTemplate } from "./_shared/meta-templates.js";
 import {
   buildCampaignTemplate,
+  getFeatureArticleButtonUrl,
   getTemplateHeaderImageUrl,
 } from "./_shared/campaign-template-builder.js";
 import { renderTemplateMessage } from "./_shared/render-template-message.js";
@@ -167,7 +168,7 @@ export default async (request: Request): Promise<Response> => {
     const { conversation } = await resolveGuestConversation(member.guestId);
     const buttonUrl =
       campaign.contentPayload.type === "feature_article"
-        ? campaign.contentPayload.articleUrl
+        ? getFeatureArticleButtonUrl(campaign.contentPayload.articleUrl)
         : undefined;
     const renderedBody = renderTemplateMessage({
       templateName: campaign.templateName,

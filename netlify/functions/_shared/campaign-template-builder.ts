@@ -33,6 +33,12 @@ function cleanLine(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+export function getFeatureArticleButtonUrl(articleUrl: string): string {
+  const url = new URL(articleUrl);
+
+  return new URL(url.pathname, "https://www.ahangama.com").toString();
+}
+
 function formatEvent(event: {
   title: string;
   venue: string;
@@ -201,6 +207,7 @@ export function buildCampaignTemplate(
       const articleTitle = cleanLine(content.articleTitle);
       const description = cleanLine(content.description);
       const articleUrl = new URL(content.articleUrl);
+      const buttonUrl = getFeatureArticleButtonUrl(content.articleUrl);
 
       return {
         templateName: "feature_article",
@@ -224,7 +231,7 @@ export function buildCampaignTemplate(
           "",
           "Tap below to read the full story.",
           "",
-          `Read Article: ${articleUrl.toString()}`,
+          `Read Article: ${buttonUrl}`,
         ].join("\n"),
       };
     }
