@@ -46,10 +46,31 @@ export const wellnessPickContentSchema = z.object({
   url: urlSchema,
 });
 
+export const featureArticleContentSchema = z.object({
+  type: z.literal("feature_article"),
+  articleTitle: z.string().min(2).max(200),
+  description: z.string().min(10).max(1000),
+  articleUrl: urlSchema.refine(
+    (value) => {
+      const url = new URL(value);
+
+      return (
+        url.protocol === "https:" &&
+        url.hostname === "ahangama.com" &&
+        url.pathname !== "/" &&
+        !url.search &&
+        !url.hash
+      );
+    },
+    "Use a canonical https://ahangama.com article URL without query parameters or a fragment",
+  ),
+});
+
 export const campaignContentSchema = z.discriminatedUnion("type", [
   whatsOnContentSchema,
   featuredCafesContentSchema,
   ahangamaGuideContentSchema,
   venueFeatureContentSchema,
   wellnessPickContentSchema,
+  featureArticleContentSchema,
 ]);

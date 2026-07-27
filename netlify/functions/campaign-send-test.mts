@@ -12,7 +12,10 @@ import {
 } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 import { getTemplate } from "./_shared/meta-templates.js";
-import { getTemplateHeaderImageUrl } from "./_shared/campaign-template-builder.js";
+import {
+  buildCampaignTemplate,
+  getTemplateHeaderImageUrl,
+} from "./_shared/campaign-template-builder.js";
 import { renderTemplateMessage } from "./_shared/render-template-message.js";
 import { resolveGuestConversation } from "./_shared/resolve-guest-conversation.js";
 import { sendNamedTemplateMessage } from "./_shared/whatsapp-client.js";
@@ -156,14 +159,25 @@ export default async (request: Request): Promise<Response> => {
       ...(Object.prototype.hasOwnProperty.call(baseVariables, "first_name")
         ? { first_name: guestName }
         : {}),
+      ...(Object.prototype.hasOwnProperty.call(baseVariables, "contact_name")
+        ? { contact_name: guestName }
+        : {}),
     };
 
     const { conversation } = await resolveGuestConversation(member.guestId);
+    const buttonUrl =
+      campaign.contentPayload.type === "feature_article"
+        ? campaign.contentPayload.articleUrl
+        : undefined;
     const renderedBody = renderTemplateMessage({
       templateName: campaign.templateName,
       variables,
+      buttonUrl,
     });
     const headerImageUrl = getTemplateHeaderImageUrl(campaign.templateName);
+    const buttonUrlSuffix = buildCampaignTemplate(
+      campaign.contentPayload,
+    ).buttonUrlSuffix;
 
     const [pendingMessage] = await db
       .insert(messages)
@@ -181,6 +195,7 @@ export default async (request: Request): Promise<Response> => {
           languageCode: campaign.templateLanguage,
           senderKey: campaign.whatsappSenderKey,
           headerImageUrl,
+          buttonUrlSuffix,
           variables,
           testRunId: testRun.id,
         },
@@ -194,6 +209,7 @@ export default async (request: Request): Promise<Response> => {
         languageCode: campaign.templateLanguage,
         variables,
         headerImageUrl,
+        buttonUrlSuffix,
         senderKey: campaign.whatsappSenderKey,
       });
 
@@ -216,6 +232,7 @@ export default async (request: Request): Promise<Response> => {
             languageCode: campaign.templateLanguage,
             senderKey: campaign.whatsappSenderKey,
             headerImageUrl,
+            buttonUrlSuffix,
             variables,
             metaResponse: result,
             testRunId: testRun.id,
@@ -260,6 +277,7 @@ export default async (request: Request): Promise<Response> => {
             error: errorMessage,
             templateName: campaign.templateName,
             headerImageUrl,
+            buttonUrlSuffix,
             variables,
             testRunId: testRun.id,
           },

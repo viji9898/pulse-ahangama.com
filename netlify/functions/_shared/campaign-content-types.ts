@@ -35,4 +35,10 @@ export type CampaignContent =
       description: string;
       practicalDetail: string;
       url: string;
+    }
+  | {
+      type: "feature_article";
+      articleTitle: string;
+      description: string;
+      articleUrl: string;
     };

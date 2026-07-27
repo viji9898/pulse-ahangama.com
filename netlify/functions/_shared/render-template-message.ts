@@ -1,8 +1,9 @@
 export function renderTemplateMessage(input: {
   templateName: string;
   variables: Record<string, string>;
+  buttonUrl?: string;
 }): string {
-  const { templateName, variables } = input;
+  const { templateName, variables, buttonUrl } = input;
 
   if (templateName === "whats_on_today") {
     return [
@@ -70,6 +71,25 @@ export function renderTemplateMessage(input: {
       "Open the Guide: https://ahangama.com/guide?utm_source=whatsapp&utm_medium=message&utm_campaign=ahangama_guide_2026_27&utm_content=broadcast_v1",
       "Get Recommendations",
     ].join("\n");
+  }
+
+  if (templateName === "feature_article") {
+    return [
+      "Feature Article",
+      "",
+      `Hello 👋 ${variables.contact_name || "there"}`,
+      "",
+      "📖 This week's Editor's Pick",
+      "",
+      variables.article_title,
+      "",
+      variables.description,
+      "",
+      "Tap below to read the full story.",
+      ...(buttonUrl ? ["", `Read Article: ${buttonUrl}`] : []),
+    ]
+      .filter((value) => value !== undefined)
+      .join("\n");
   }
 
   return `[Template: ${templateName}]`;

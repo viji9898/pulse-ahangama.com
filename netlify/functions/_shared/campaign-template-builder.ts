@@ -5,6 +5,7 @@ export type BuiltCampaignTemplate = {
   languageCode: string;
   variables: Record<string, string>;
   headerImageUrl?: string;
+  buttonUrlSuffix?: string;
   preview: string;
 };
 
@@ -195,5 +196,37 @@ export function buildCampaignTemplate(
           content.url.trim(),
         ].join("\n"),
       };
+
+    case "feature_article": {
+      const articleTitle = cleanLine(content.articleTitle);
+      const description = cleanLine(content.description);
+      const articleUrl = new URL(content.articleUrl);
+
+      return {
+        templateName: "feature_article",
+        languageCode: "en",
+        variables: {
+          contact_name: "there",
+          article_title: articleTitle,
+          description,
+        },
+        buttonUrlSuffix: articleUrl.pathname.replace(/^\/+|\/+$/g, ""),
+        preview: [
+          "Feature Article",
+          "",
+          "Hello 👋 there",
+          "",
+          "📖 This week's Editor's Pick",
+          "",
+          articleTitle,
+          "",
+          description,
+          "",
+          "Tap below to read the full story.",
+          "",
+          `Read Article: ${articleUrl.toString()}`,
+        ].join("\n"),
+      };
+    }
   }
 }

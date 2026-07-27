@@ -21,6 +21,7 @@ import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import AhangamaGuideForm from "./content/AhangamaGuideForm";
+import FeatureArticleForm from "./content/FeatureArticleForm";
 import FeaturedCafesForm from "./content/FeaturedCafesForm";
 import VenueFeatureForm from "./content/VenueFeatureForm";
 import WellnessPickForm from "./content/WellnessPickForm";
@@ -80,7 +81,8 @@ type CampaignFormValues = {
     | "featured_cafes"
     | "ahangama_guide"
     | "venue_feature"
-    | "wellness_pick";
+    | "wellness_pick"
+    | "feature_article";
   content: Record<string, unknown>;
   interests?: string[];
   accommodationName?: string;
@@ -353,6 +355,10 @@ export default function CampaignComposerDrawer({
                 label: "Wellness Pick",
                 value: "wellness_pick",
               },
+              {
+                label: "Feature Article",
+                value: "feature_article",
+              },
             ]}
             onChange={() => {
               form.setFieldValue("content", {});
@@ -390,6 +396,8 @@ export default function CampaignComposerDrawer({
         {campaignType === "venue_feature" && <VenueFeatureForm />}
 
         {campaignType === "wellness_pick" && <WellnessPickForm />}
+
+        {campaignType === "feature_article" && <FeatureArticleForm />}
 
         <Divider />
 

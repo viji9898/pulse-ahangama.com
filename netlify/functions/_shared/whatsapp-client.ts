@@ -137,6 +137,7 @@ export async function sendNamedTemplateMessage(input: {
   languageCode: string;
   variables: Record<string, string>;
   headerImageUrl?: string;
+  buttonUrlSuffix?: string;
 } & WhatsAppSenderInput): Promise<MetaMessageResponse> {
   const components = [
     ...(input.headerImageUrl
@@ -162,6 +163,21 @@ export async function sendNamedTemplateMessage(input: {
         text: value,
       })),
     },
+    ...(input.buttonUrlSuffix
+      ? [
+          {
+            type: "button",
+            sub_type: "url",
+            index: "0",
+            parameters: [
+              {
+                type: "text",
+                text: input.buttonUrlSuffix,
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return sendMessage(

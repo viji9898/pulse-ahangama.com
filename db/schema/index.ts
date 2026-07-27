@@ -45,6 +45,7 @@ export const campaignTypeEnum = pgEnum("campaign_type", [
   "ahangama_guide",
   "venue_feature",
   "wellness_pick",
+  "feature_article",
 ]);
 
 export const whatsappSenderEnum = pgEnum("whatsapp_sender", [
@@ -167,6 +168,12 @@ export const campaigns = pgTable(
             description: string;
             practicalDetail: string;
             url: string;
+          }
+        | {
+            type: "feature_article";
+            articleTitle: string;
+            description: string;
+            articleUrl: string;
           }
       >()
       .notNull(),

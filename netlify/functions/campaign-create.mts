@@ -152,7 +152,24 @@ export default async (request: Request): Promise<Response> => {
           ).toFixed(4),
           templateVariables: {
             ...builtTemplate.variables,
-            customer_name: recipient.firstName || "there",
+            ...(Object.prototype.hasOwnProperty.call(
+              builtTemplate.variables,
+              "customer_name",
+            )
+              ? { customer_name: recipient.firstName || "there" }
+              : {}),
+            ...(Object.prototype.hasOwnProperty.call(
+              builtTemplate.variables,
+              "first_name",
+            )
+              ? { first_name: recipient.firstName || "there" }
+              : {}),
+            ...(Object.prototype.hasOwnProperty.call(
+              builtTemplate.variables,
+              "contact_name",
+            )
+              ? { contact_name: recipient.firstName || "there" }
+              : {}),
           },
         })),
       );
