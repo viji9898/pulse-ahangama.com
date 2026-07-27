@@ -144,6 +144,7 @@ export default function QuickSendPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             templateName: values.templateName,
+            whatsappSenderKey: values.whatsappSenderKey,
             content: buildContent(values),
           }),
         }),
@@ -287,11 +288,6 @@ export default function QuickSendPage() {
                     value: "qs_feature_article_ahangama_pass",
                   },
                 ]}
-                onChange={(templateName: QuickSendTemplateName) => {
-                  if (templateName === "qs_feature_article_ahangama_pass") {
-                    form.setFieldValue("whatsappSenderKey", "ahangama_pass");
-                  }
-                }}
               />
             </Form.Item>
 
@@ -325,9 +321,6 @@ export default function QuickSendPage() {
               rules={[{ required: true }]}
             >
               <Select
-                disabled={
-                  selectedTemplate === "qs_feature_article_ahangama_pass"
-                }
                 options={[
                   { label: "Ahangama", value: "ahangama" },
                   { label: "Ahangama Pass", value: "ahangama_pass" },

@@ -7,9 +7,11 @@ import {
   quickSendTemplateNames,
   type QuickSendTemplateName,
 } from "./_shared/quick-send-template.js";
+import type { WhatsAppSenderKey } from "./_shared/whatsapp-client.js";
 
 type RequestBody = {
   templateName?: QuickSendTemplateName;
+  whatsappSenderKey?: WhatsAppSenderKey;
   content?: unknown;
 };
 
@@ -59,7 +61,7 @@ export default async (request: Request): Promise<Response> => {
     ok: true,
     templateName: built.templateName,
     languageCode: built.languageCode,
-    senderKey: getQuickSendSenderKey(templateName),
+    senderKey: getQuickSendSenderKey(input.whatsappSenderKey),
     preview: built.preview,
   });
 };

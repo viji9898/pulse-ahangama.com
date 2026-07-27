@@ -70,7 +70,6 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const whatsappSenderKey = getQuickSendSenderKey(
-    templateName,
     input.whatsappSenderKey,
   );
 

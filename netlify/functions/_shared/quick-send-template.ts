@@ -21,13 +21,8 @@ export const AHANGAMA_PASS_FEATURE_ARTICLE_CONTENT = {
 } satisfies CampaignContent;
 
 export function getQuickSendSenderKey(
-  templateName: QuickSendTemplateName,
   requestedSenderKey?: WhatsAppSenderKey,
 ): WhatsAppSenderKey {
-  if (templateName === "qs_feature_article_ahangama_pass") {
-    return "ahangama_pass";
-  }
-
   return requestedSenderKey ?? "ahangama";
 }
 

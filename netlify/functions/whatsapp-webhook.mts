@@ -11,7 +11,10 @@ import { db } from "./_shared/db.js";
 import { env } from "./_shared/env.js";
 import { resolveConversation } from "./_shared/resolve-conversation.js";
 import { getWhatsAppSenderKey } from "./_shared/whatsapp-client.js";
-import type { WhatsAppWebhookPayload } from "./_shared/whatsapp-types.js";
+import type {
+  WhatsAppInboundMessage,
+  WhatsAppWebhookPayload,
+} from "./_shared/whatsapp-types.js";
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, { status });
@@ -56,6 +59,18 @@ async function saveWebhookEvent(
     phoneNumberId,
     payload,
   });
+}
+
+function getIncomingMessageBody(
+  incomingMessage: WhatsAppInboundMessage,
+): string {
+  return (
+    incomingMessage.text?.body ||
+    incomingMessage.button?.text ||
+    incomingMessage.interactive?.button_reply?.title ||
+    incomingMessage.interactive?.list_reply?.title ||
+    `[${incomingMessage.type || "unknown"} message]`
+  );
 }
 
 async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
@@ -105,9 +120,7 @@ async function processPayload(payload: WhatsAppWebhookPayload): Promise<void> {
           conversationId: conversation.id,
         });
 
-        const messageBody =
-          incomingMessage.text?.body ||
-          `[${incomingMessage.type || "unknown"} message]`;
+        const messageBody = getIncomingMessageBody(incomingMessage);
 
         const messageTimestamp = incomingMessage.timestamp
           ? new Date(Number(incomingMessage.timestamp) * 1000)
