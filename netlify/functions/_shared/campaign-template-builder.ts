@@ -15,6 +15,9 @@ export const FEATURED_CAFES_HEADER_IMAGE_URL =
 export const AHANGAMA_GUIDE_HEADER_IMAGE_URL =
   "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-demo/ahangama_guide_2026%3A27.jpg";
 
+export const AHANGAMA_PASS_FEATURE_ARTICLE_HEADER_IMAGE_URL =
+  "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-pulse/ahangama-com/feature-article_inside-the-launch-of-ahangama-circle.jpg";
+
 export function getTemplateHeaderImageUrl(
   templateName: string,
 ): string | undefined {
@@ -24,6 +27,10 @@ export function getTemplateHeaderImageUrl(
 
   if (templateName === "ahangama_guide_2026_27") {
     return AHANGAMA_GUIDE_HEADER_IMAGE_URL;
+  }
+
+  if (templateName === "qs_feature_article_ahangama_pass") {
+    return AHANGAMA_PASS_FEATURE_ARTICLE_HEADER_IMAGE_URL;
   }
 
   return undefined;

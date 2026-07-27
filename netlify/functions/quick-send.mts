@@ -1,8 +1,14 @@
 import type { Config } from "@netlify/functions";
 import { campaigns } from "../../db/schema/index.js";
-import { buildCampaignTemplate } from "./_shared/campaign-template-builder.js";
 import { campaignContentSchema } from "./_shared/campaign-validation.js";
 import { db } from "./_shared/db.js";
+import {
+  AHANGAMA_PASS_FEATURE_ARTICLE_CONTENT,
+  buildQuickSendTemplate,
+  getQuickSendSenderKey,
+  quickSendTemplateNames,
+  type QuickSendTemplateName,
+} from "./_shared/quick-send-template.js";
 import type { WhatsAppSenderKey } from "./_shared/whatsapp-client.js";
 import sendCampaignTest from "./campaign-send-test.mjs";
 
@@ -11,6 +17,7 @@ const whatsappSenderKeys = ["ahangama", "ahangama_pass"] as const;
 type RequestBody = {
   name?: string;
   audienceId?: string;
+  templateName?: QuickSendTemplateName;
   whatsappSenderKey?: WhatsAppSenderKey;
   content?: unknown;
 };
@@ -31,7 +38,22 @@ export default async (request: Request): Promise<Response> => {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsedContent = campaignContentSchema.safeParse(input.content);
+  const templateName = quickSendTemplateNames.find(
+    (name) => name === input.templateName,
+  );
+
+  if (!templateName) {
+    return Response.json(
+      { error: "Valid Quick Send template is required" },
+      { status: 400 },
+    );
+  }
+
+  const parsedContent = campaignContentSchema.safeParse(
+    templateName === "qs_feature_article_ahangama_pass"
+      ? AHANGAMA_PASS_FEATURE_ARTICLE_CONTENT
+      : input.content,
+  );
 
   if (!parsedContent.success || parsedContent.data.type !== "feature_article") {
     return Response.json(
@@ -47,7 +69,10 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
-  const whatsappSenderKey = input.whatsappSenderKey ?? "ahangama";
+  const whatsappSenderKey = getQuickSendSenderKey(
+    templateName,
+    input.whatsappSenderKey,
+  );
 
   if (!whatsappSenderKeys.includes(whatsappSenderKey)) {
     return Response.json(
@@ -57,7 +82,7 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const content = parsedContent.data;
-  const builtTemplate = buildCampaignTemplate(content);
+  const builtTemplate = buildQuickSendTemplate(templateName, content);
   const [campaign] = await db
     .insert(campaigns)
     .values({

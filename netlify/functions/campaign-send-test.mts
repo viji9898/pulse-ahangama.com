@@ -11,7 +11,10 @@ import {
   testAudiences,
 } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
-import { getTemplate } from "./_shared/meta-templates.js";
+import {
+  getTemplate,
+  getTemplateHeaderExampleImageUrl,
+} from "./_shared/meta-templates.js";
 import {
   buildCampaignTemplate,
   getFeatureArticleButtonUrl,
@@ -175,10 +178,13 @@ export default async (request: Request): Promise<Response> => {
       variables,
       buttonUrl,
     });
-    const headerImageUrl = getTemplateHeaderImageUrl(campaign.templateName);
-    const buttonUrlSuffix = buildCampaignTemplate(
-      campaign.contentPayload,
-    ).buttonUrlSuffix;
+    const headerImageUrl =
+      getTemplateHeaderImageUrl(campaign.templateName) ??
+      getTemplateHeaderExampleImageUrl(template);
+    const buttonUrlSuffix =
+      campaign.templateName === "qs_feature_article_ahangama_pass"
+        ? undefined
+        : buildCampaignTemplate(campaign.contentPayload).buttonUrlSuffix;
 
     const [pendingMessage] = await db
       .insert(messages)

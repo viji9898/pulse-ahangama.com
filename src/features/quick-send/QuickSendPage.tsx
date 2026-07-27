@@ -18,10 +18,14 @@ import { useEffect, useState } from "react";
 import FeatureArticleForm from "../campaigns/content/FeatureArticleForm";
 
 type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
+type QuickSendTemplateName =
+  | "feature_article"
+  | "qs_feature_article_ahangama_pass";
 
 type QuickSendValues = {
   name?: string;
   audienceId: string;
+  templateName: QuickSendTemplateName;
   whatsappSenderKey: WhatsAppSenderKey;
   content: {
     articleTitle: string;
@@ -64,6 +68,8 @@ type SendResult = {
 
 export default function QuickSendPage() {
   const [form] = Form.useForm<QuickSendValues>();
+  const selectedTemplate =
+    Form.useWatch("templateName", form) ?? "feature_article";
   const [audiences, setAudiences] = useState<TestAudience[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
@@ -92,6 +98,7 @@ export default function QuickSendPage() {
         setAudiences(activeAudiences);
         form.setFieldsValue({
           audienceId: defaultAudience?.id,
+          templateName: "feature_article",
           whatsappSenderKey: "ahangama",
         });
       } catch (error) {
@@ -109,6 +116,17 @@ export default function QuickSendPage() {
   }, [form]);
 
   function buildContent(values: QuickSendValues) {
+    if (values.templateName === "qs_feature_article_ahangama_pass") {
+      return {
+        type: "feature_article" as const,
+        articleTitle: "Inside Ahangama Circle",
+        description:
+          "A community bringing together founders, creatives, hospitality leaders and local businesses shaping the future of Sri Lanka's south coast.",
+        articleUrl:
+          "https://ahangama.com/inside-the-launch-of-ahangama-circle/",
+      };
+    }
+
     return {
       type: "feature_article" as const,
       ...values.content,
@@ -121,10 +139,13 @@ export default function QuickSendPage() {
 
     try {
       const [contentResponse, membersResponse] = await Promise.all([
-        fetch("/api/campaigns/content-preview", {
+        fetch("/api/quick-send/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildContent(values)),
+          body: JSON.stringify({
+            templateName: values.templateName,
+            content: buildContent(values),
+          }),
         }),
         fetch(
           `/api/test-audiences/members?audienceId=${encodeURIComponent(values.audienceId)}`,
@@ -187,6 +208,7 @@ export default function QuickSendPage() {
         body: JSON.stringify({
           name: values.name,
           audienceId: values.audienceId,
+          templateName: values.templateName,
           whatsappSenderKey: values.whatsappSenderKey,
           content: buildContent(values),
         }),
@@ -229,7 +251,7 @@ export default function QuickSendPage() {
       <Alert
         type="info"
         showIcon
-        message="Feature Article uses Meta link tracking. Preview is required before sending."
+        message="Preview is required before sending. Meta link tracking is enabled for Feature Article templates."
       />
 
       <Form
@@ -252,15 +274,46 @@ export default function QuickSendPage() {
           <section>
             <Typography.Title level={4}>Message</Typography.Title>
 
-            <Form.Item label="Template">
-              <Input value="Feature Article" disabled />
+            <Form.Item
+              name="templateName"
+              label="Template"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { label: "Feature Article", value: "feature_article" },
+                  {
+                    label: "Feature Article · Ahangama Pass",
+                    value: "qs_feature_article_ahangama_pass",
+                  },
+                ]}
+                onChange={(templateName: QuickSendTemplateName) => {
+                  if (templateName === "qs_feature_article_ahangama_pass") {
+                    form.setFieldValue("whatsappSenderKey", "ahangama_pass");
+                  }
+                }}
+              />
             </Form.Item>
 
             <Form.Item name="name" label="Internal name">
               <Input placeholder="Ahangama Circle launch article" />
             </Form.Item>
 
-            <FeatureArticleForm />
+            {selectedTemplate === "feature_article" ? (
+              <FeatureArticleForm />
+            ) : (
+              <Descriptions bordered column={1} size="small">
+                <Descriptions.Item label="Article">
+                  Inside Ahangama Circle
+                </Descriptions.Item>
+                <Descriptions.Item label="Message">
+                  Fixed approved copy with personalized contact name
+                </Descriptions.Item>
+                <Descriptions.Item label="Actions">
+                  Read Story · I'd love to attend the next event.
+                </Descriptions.Item>
+              </Descriptions>
+            )}
           </section>
 
           <section>
@@ -272,6 +325,9 @@ export default function QuickSendPage() {
               rules={[{ required: true }]}
             >
               <Select
+                disabled={
+                  selectedTemplate === "qs_feature_article_ahangama_pass"
+                }
                 options={[
                   { label: "Ahangama", value: "ahangama" },
                   { label: "Ahangama Pass", value: "ahangama_pass" },

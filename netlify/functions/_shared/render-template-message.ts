@@ -92,5 +92,22 @@ export function renderTemplateMessage(input: {
       .join("\n");
   }
 
+  if (templateName === "qs_feature_article_ahangama_pass") {
+    return [
+      `Hi ${variables.contact_name || "there"} 👋🏾`,
+      "",
+      "Inside Ahangama Circle",
+      "",
+      "A community bringing together founders, creatives, hospitality leaders and local businesses shaping the future of Sri Lanka's south coast.",
+      "",
+      "Inside the story, discover how Ahangama Circle began, meet the people behind it, and see what's planned next.",
+      "",
+      "Read the full story below.",
+      "",
+      "Read Story: https://ahangama.com/inside-the-launch-of-ahangama-circle/",
+      "I'd love to attend the next event.",
+    ].join("\n");
+  }
+
   return `[Template: ${templateName}]`;
 }

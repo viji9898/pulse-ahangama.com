@@ -1,11 +1,18 @@
 import { env } from "./env.js";
 
-type MetaTemplate = {
+export type MetaTemplate = {
   id: string;
   name: string;
   language: string;
   status: string;
   category: string;
+  components?: Array<{
+    type: string;
+    format?: string;
+    example?: {
+      header_handle?: string[];
+    };
+  }>;
 };
 
 type MetaTemplateResponse = {
@@ -24,7 +31,7 @@ export async function getTemplate(
   );
 
   url.searchParams.set("name", name);
-  url.searchParams.set("fields", "id,name,language,status,category");
+  url.searchParams.set("fields", "id,name,language,status,category,components");
 
   const response = await fetch(url, {
     headers: {
@@ -43,4 +50,12 @@ export async function getTemplate(
       (template) => template.name === name && template.language === language,
     ) ?? null
   );
+}
+
+export function getTemplateHeaderExampleImageUrl(
+  template: MetaTemplate,
+): string | undefined {
+  return template.components?.find(
+    (component) => component.type === "HEADER" && component.format === "IMAGE",
+  )?.example?.header_handle?.[0];
 }
