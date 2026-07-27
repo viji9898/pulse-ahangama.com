@@ -50,7 +50,10 @@ export default function FeatureArticleForm() {
         extra={
           <>
             <div>Meta link tracking is enabled for this template.</div>
-            <Typography.Text type="secondary">
+            <Typography.Text
+              type="secondary"
+              style={{ overflowWrap: "anywhere" }}
+            >
               Button URL preview: {getButtonUrl(articleUrl)}
             </Typography.Text>
           </>

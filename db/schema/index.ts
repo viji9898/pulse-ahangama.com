@@ -39,6 +39,11 @@ export const campaignStatusEnum = pgEnum("campaign_status", [
   "cancelled",
 ]);
 
+export const campaignKindEnum = pgEnum("campaign_kind", [
+  "campaign",
+  "quick_send",
+]);
+
 export const campaignTypeEnum = pgEnum("campaign_type", [
   "whats_on_today",
   "featured_cafes",
@@ -101,6 +106,7 @@ export const campaigns = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     channel: messageChannelEnum("channel").notNull(),
     status: campaignStatusEnum("status").default("draft").notNull(),
+    kind: campaignKindEnum("kind").default("campaign").notNull(),
     campaignType: campaignTypeEnum("campaign_type").notNull(),
     whatsappSenderKey: whatsappSenderEnum("whatsapp_sender_key")
       .default("ahangama")

@@ -3,6 +3,7 @@ import {
   DashboardOutlined,
   MessageOutlined,
   NotificationOutlined,
+  SendOutlined,
   ShopOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
@@ -12,6 +13,7 @@ import CampaignsPage from "./features/campaigns/CampaignsPage";
 import GuestProfileDrawer from "./features/guests/GuestProfileDrawer";
 import GuestsPage from "./features/guests/GuestsPage";
 import InboxPage from "./features/inbox/InboxPage";
+import QuickSendPage from "./features/quick-send/QuickSendPage";
 
 const { Header, Sider, Content } = Layout;
 
@@ -35,6 +37,11 @@ const menuItems = [
     key: "campaigns",
     icon: <NotificationOutlined />,
     label: "Campaigns",
+  },
+  {
+    key: "quick-send",
+    icon: <SendOutlined />,
+    label: "Quick Send",
   },
   {
     key: "venues",
@@ -100,9 +107,12 @@ export default function App() {
 
           {activePage === "campaigns" && <CampaignsPage />}
 
+          {activePage === "quick-send" && <QuickSendPage />}
+
           {activePage !== "inbox" &&
             activePage !== "guests" &&
-            activePage !== "campaigns" && (
+            activePage !== "campaigns" &&
+            activePage !== "quick-send" && (
               <>
                 <Typography.Title level={2}>Dashboard</Typography.Title>
 

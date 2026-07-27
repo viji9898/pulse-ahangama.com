@@ -32,6 +32,7 @@ export default async (request: Request): Promise<Response> => {
       })
       .from(campaigns)
       .leftJoin(venues, eq(campaigns.venueId, venues.id))
+      .where(eq(campaigns.kind, "campaign"))
       .orderBy(desc(campaigns.createdAt))
       .limit(250);
 
