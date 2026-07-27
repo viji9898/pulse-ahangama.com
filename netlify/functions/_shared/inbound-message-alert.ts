@@ -1,3 +1,8 @@
+import {
+  sendNamedTemplateMessage,
+  type WhatsAppSenderKey,
+} from "./whatsapp-client.js";
+
 type InboundAlertMessage = {
   body: string | null;
   createdAt: Date;
@@ -14,6 +19,17 @@ export type InboundMessageEmail = {
   subject: string;
   text: string;
   html: string;
+};
+
+export const INBOUND_WHATSAPP_ALERT_RECIPIENT =
+  process.env.INBOUND_WHATSAPP_ALERT_RECIPIENT || "94777322500";
+
+type InboundMessageWhatsAppAlert = {
+  firstName: string | null;
+  lastName: string | null;
+  phoneNumber: string | null;
+  body: string | null;
+  senderKey: WhatsAppSenderKey;
 };
 
 function required(name: string): string {
@@ -43,17 +59,47 @@ function formatReceivedAt(value: Date): string {
   });
 }
 
+function cleanTemplateParameter(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export async function sendInboundMessageWhatsAppAlert(
+  alert: InboundMessageWhatsAppAlert,
+): Promise<string | null> {
+  const username =
+    [alert.firstName, alert.lastName]
+      .filter(Boolean)
+      .map((name) => cleanTemplateParameter(name!))
+      .join(" ") || "WhatsApp contact";
+  const normalizedNumber = alert.phoneNumber?.replace(/\D/g, "") || "";
+  const number = normalizedNumber ? `+${normalizedNumber}` : "Not available";
+  const message = cleanTemplateParameter(
+    alert.body || "[Unsupported WhatsApp message]",
+  );
+  const result = await sendNamedTemplateMessage({
+    to: INBOUND_WHATSAPP_ALERT_RECIPIENT,
+    templateName: "message_received_alert",
+    languageCode: process.env.INBOUND_WHATSAPP_ALERT_TEMPLATE_LANGUAGE || "en",
+    variables: {
+      username,
+      number,
+      message,
+    },
+    senderKey: alert.senderKey,
+  });
+
+  return result.messages?.[0]?.id ?? null;
+}
+
 export function buildInboundMessageEmail(
   alert: InboundMessageAlert,
 ): InboundMessageEmail {
-  const contactName = [alert.firstName, alert.lastName]
-    .filter(Boolean)
-    .join(" ") || "WhatsApp contact";
+  const contactName =
+    [alert.firstName, alert.lastName].filter(Boolean).join(" ") ||
+    "WhatsApp contact";
   const phoneNumber = alert.phoneNumber || "Not available";
   const whatsappNumber = phoneNumber.replace(/\D/g, "");
-  const whatsappUrl = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}`
-    : null;
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
   const safeSubjectName = contactName.replace(/[\r\n]+/g, " ");
   const messageText = alert.messages
     .map(
@@ -81,7 +127,9 @@ export function buildInboundMessageEmail(
       "",
       "Message:",
       messageText,
-      ...(whatsappUrl ? ["", `Message contact on WhatsApp: ${whatsappUrl}`] : []),
+      ...(whatsappUrl
+        ? ["", `Message contact on WhatsApp: ${whatsappUrl}`]
+        : []),
     ].join("\n"),
     html: `
       <div style="max-width: 640px; margin: 0 auto; font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">

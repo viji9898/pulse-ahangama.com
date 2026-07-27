@@ -326,6 +326,20 @@ export const messages = pgTable(
     }),
     emailAlertAttempts: integer("email_alert_attempts").default(0).notNull(),
     emailAlertError: text("email_alert_error"),
+    whatsappAlertProcessingAt: timestamp("whatsapp_alert_processing_at", {
+      withTimezone: true,
+    }),
+    whatsappAlertSentAt: timestamp("whatsapp_alert_sent_at", {
+      withTimezone: true,
+    }),
+    whatsappAlertAttempts: integer("whatsapp_alert_attempts")
+      .default(0)
+      .notNull(),
+    whatsappAlertError: text("whatsapp_alert_error"),
+    whatsappAlertProviderMessageId: varchar(
+      "whatsapp_alert_provider_message_id",
+      { length: 255 },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -339,6 +353,11 @@ export const messages = pgTable(
       table.direction,
       table.emailAlertSentAt,
       table.emailAlertProcessingAt,
+    ),
+    index("messages_whatsapp_alert_idx").on(
+      table.direction,
+      table.whatsappAlertSentAt,
+      table.whatsappAlertProcessingAt,
     ),
   ],
 );
@@ -609,7 +628,9 @@ export const campaignTestRecipients = pgTable(
       })
       .notNull(),
 
-    guestId: uuid("guest_id").references(() => guests.id).notNull(),
+    guestId: uuid("guest_id")
+      .references(() => guests.id)
+      .notNull(),
 
     phoneNumber: varchar("phone_number", {
       length: 40,
