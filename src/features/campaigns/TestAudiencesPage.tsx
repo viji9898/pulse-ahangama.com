@@ -1,13 +1,18 @@
-import { ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import {
   Button,
   Card,
   Col,
   Descriptions,
   Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
   Row,
   Space,
   Statistic,
+  Switch,
   Table,
   Typography,
   message,
@@ -31,6 +36,19 @@ type TestAudienceMember = {
   phoneNumber: string | null;
   normalizedPhoneNumber: string | null;
   whatsappOptIn: boolean;
+};
+
+type AudienceFormValues = {
+  audienceId?: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  members: Array<{
+    firstName?: string;
+    lastName?: string;
+    phoneNumber: string;
+    countryCode?: string;
+  }>;
 };
 
 const audienceColumns: ColumnsType<TestAudience> = [
@@ -86,31 +104,45 @@ const memberColumns: ColumnsType<TestAudienceMember> = [
 ];
 
 export default function TestAudiencesPage() {
+  const [form] = Form.useForm<AudienceFormValues>();
   const [audiences, setAudiences] = useState<TestAudience[]>([]);
   const [selectedAudience, setSelectedAudience] =
     useState<TestAudience | null>(null);
   const [members, setMembers] = useState<TestAudienceMember[]>([]);
   const [loadingAudiences, setLoadingAudiences] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [savingAudience, setSavingAudience] = useState(false);
+  const [deletingAudience, setDeletingAudience] = useState(false);
+  const [editingAudienceId, setEditingAudienceId] = useState<string | null>(null);
+
+  function memberToLabel(member: TestAudienceMember): string {
+    return [member.firstName, member.lastName].filter(Boolean).join(" ") || "-";
+  }
+
+  async function loadMembersByAudienceId(audienceId: string) {
+    const response = await fetch(
+      `/api/test-audiences/members?audienceId=${encodeURIComponent(audienceId)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error("Unable to load test audience members");
+    }
+
+    const data = (await response.json()) as {
+      members: TestAudienceMember[];
+    };
+
+    return data.members;
+  }
 
   async function loadMembers(audience: TestAudience) {
     setLoadingMembers(true);
 
     try {
-      const response = await fetch(
-        `/api/test-audiences/members?audienceId=${encodeURIComponent(audience.id)}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Unable to load test audience members");
-      }
-
-      const data = (await response.json()) as {
-        members: TestAudienceMember[];
-      };
-
+      const data = await loadMembersByAudienceId(audience.id);
       setSelectedAudience(audience);
-      setMembers(data.members);
+      setMembers(data);
     } catch (error) {
       message.error(
         error instanceof Error ? error.message : "Unable to load members",
@@ -120,7 +152,7 @@ export default function TestAudiencesPage() {
     }
   }
 
-  async function loadAudiences() {
+  async function loadAudiences(preferredAudienceId?: string | null) {
     setLoadingAudiences(true);
 
     try {
@@ -137,7 +169,11 @@ export default function TestAudiencesPage() {
       setAudiences(data.audiences);
 
       const nextAudience =
-        selectedAudience == null
+        preferredAudienceId != null
+          ? data.audiences.find((audience) => audience.id === preferredAudienceId) ??
+            data.audiences[0] ??
+            null
+          : selectedAudience == null
           ? data.audiences[0] ?? null
           : data.audiences.find((audience) => audience.id === selectedAudience.id) ??
             data.audiences[0] ??
@@ -162,6 +198,112 @@ export default function TestAudiencesPage() {
     void loadAudiences();
   }, []);
 
+  function openCreateModal() {
+    setEditingAudienceId(null);
+    form.setFieldsValue({
+      name: "",
+      description: "",
+      active: true,
+      members: [{ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" }],
+    });
+    setModalOpen(true);
+  }
+
+  function openEditModal() {
+    if (!selectedAudience) {
+      return;
+    }
+
+    setEditingAudienceId(selectedAudience.id);
+    form.setFieldsValue({
+      audienceId: selectedAudience.id,
+      name: selectedAudience.name,
+      description: selectedAudience.description || "",
+      active: selectedAudience.active,
+      members: members.length
+        ? members.map((member) => ({
+            firstName: member.firstName || "",
+            lastName: member.lastName || "",
+            phoneNumber: member.phoneNumber || member.normalizedPhoneNumber || "",
+            countryCode: "LK",
+          }))
+        : [{ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" }],
+    });
+    setModalOpen(true);
+  }
+
+  async function saveAudience() {
+    try {
+      const values = await form.validateFields();
+      setSavingAudience(true);
+
+      const response = await fetch("/api/test-audiences/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        audience?: TestAudience;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to save test audience");
+      }
+
+      message.success(editingAudienceId ? "Test audience updated" : "Test audience created");
+      setModalOpen(false);
+      form.resetFields();
+      await loadAudiences(result.audience?.id ?? values.audienceId ?? null);
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message);
+      }
+    } finally {
+      setSavingAudience(false);
+    }
+  }
+
+  async function deleteAudience() {
+    if (!selectedAudience) {
+      return;
+    }
+
+    setDeletingAudience(true);
+
+    try {
+      const response = await fetch("/api/test-audiences/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ audienceId: selectedAudience.id }),
+      });
+
+      const result = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to delete test audience");
+      }
+
+      message.success("Test audience deleted");
+      await loadAudiences(null);
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "Unable to delete test audience",
+      );
+    } finally {
+      setDeletingAudience(false);
+    }
+  }
+
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Row align="middle" justify="space-between" gutter={[16, 16]}>
@@ -177,13 +319,37 @@ export default function TestAudiencesPage() {
         </Col>
 
         <Col>
-          <Button
-            icon={<ReloadOutlined />}
-            loading={loadingAudiences}
-            onClick={() => void loadAudiences()}
-          >
-            Refresh
-          </Button>
+          <Space>
+            <Button icon={<PlusOutlined />} onClick={openCreateModal}>
+              Add audience
+            </Button>
+            <Button
+              icon={<EditOutlined />}
+              disabled={!selectedAudience}
+              onClick={openEditModal}
+            >
+              Edit
+            </Button>
+            <Popconfirm
+              title="Delete test audience?"
+              description="This removes the audience and its member links. Guests stay in the database."
+              okText="Delete"
+              okButtonProps={{ danger: true, loading: deletingAudience }}
+              onConfirm={() => void deleteAudience()}
+              disabled={!selectedAudience}
+            >
+              <Button danger icon={<DeleteOutlined />} disabled={!selectedAudience}>
+                Delete
+              </Button>
+            </Popconfirm>
+            <Button
+              icon={<ReloadOutlined />}
+              loading={loadingAudiences}
+              onClick={() => void loadAudiences(selectedAudience?.id ?? null)}
+            >
+              Refresh
+            </Button>
+          </Space>
         </Col>
       </Row>
 
@@ -260,6 +426,11 @@ export default function TestAudiencesPage() {
                 <Descriptions.Item label="Members">
                   {selectedAudience.memberCount}
                 </Descriptions.Item>
+                <Descriptions.Item label="Preview members">
+                  {members.length > 0
+                    ? members.map(memberToLabel).join(", ")
+                    : "-"}
+                </Descriptions.Item>
               </Descriptions>
             ) : (
               <Empty description="No test audiences found" />
@@ -278,6 +449,101 @@ export default function TestAudiencesPage() {
           locale={{ emptyText: "Select a test audience to view its members" }}
         />
       </Card>
+
+      <Modal
+        title={editingAudienceId ? "Edit test audience" : "Add test audience"}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={() => void saveAudience()}
+        okText={editingAudienceId ? "Save changes" : "Create audience"}
+        confirmLoading={savingAudience}
+        width={900}
+        destroyOnHidden
+      >
+        <Form form={form} layout="vertical" initialValues={{ active: true, members: [] }}>
+          <Form.Item name="audienceId" hidden>
+            <Input />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Audience name"
+                name="name"
+                rules={[{ required: true, message: "Enter an audience name" }]}
+              >
+                <Input placeholder="Midgama USRF Club - Test" />
+              </Form.Item>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <Form.Item label="Description" name="description">
+                <Input placeholder="Internal testing list" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item label="Active" name="active" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+
+          <Typography.Title level={5}>Members</Typography.Title>
+
+          <Form.List name="members">
+            {(fields, { add, remove }) => (
+              <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                {fields.map((field, index) => (
+                  <Card
+                    key={field.key}
+                    size="small"
+                    title={`Member ${index + 1}`}
+                    extra={
+                      <Button danger type="text" onClick={() => remove(field.name)}>
+                        Remove
+                      </Button>
+                    }
+                  >
+                    <Row gutter={12}>
+                      <Col xs={24} md={6}>
+                        <Form.Item label="First name" name={[field.name, "firstName"]}>
+                          <Input placeholder="Viji" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Form.Item label="Last name" name={[field.name, "lastName"]}>
+                          <Input placeholder="Pragnaratn" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item
+                          label="Phone number"
+                          name={[field.name, "phoneNumber"]}
+                          rules={[{ required: true, message: "Enter a phone number" }]}
+                        >
+                          <Input placeholder="+94 77 662 0320" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={4}>
+                        <Form.Item label="Country" name={[field.name, "countryCode"]}>
+                          <Input placeholder="LK" maxLength={2} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </Card>
+                ))}
+
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={() => add({ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" })}
+                >
+                  Add number
+                </Button>
+              </Space>
+            )}
+          </Form.List>
+        </Form>
+      </Modal>
     </Space>
   );
 }
