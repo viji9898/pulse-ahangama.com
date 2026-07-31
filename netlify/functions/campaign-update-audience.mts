@@ -92,9 +92,6 @@ export default async (request: Request): Promise<Response> => {
             )
               ? { contact_name: recipient.firstName || "there" }
               : {}),
-            audience_sources: recipient.sources
-              .map((source) => source.audienceName)
-              .join(", "),
           },
         })),
       );

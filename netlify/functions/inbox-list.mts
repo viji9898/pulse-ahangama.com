@@ -8,6 +8,84 @@ import {
   type WhatsAppSenderKey,
 } from "./_shared/whatsapp-client.js";
 
+const INBOX_QUERY_RETRY_DELAYS_MS = [250, 750] as const;
+
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+function shouldRetryInboxQuery(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return true;
+  }
+
+  if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return true;
+    }
+
+    if (/fetch failed|Error connecting to database/i.test(error.message)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function loadInboxConversations(phoneNumberId: string | null) {
+  let lastError: unknown = null;
+
+  for (
+    let attempt = 0;
+    attempt <= INBOX_QUERY_RETRY_DELAYS_MS.length;
+    attempt += 1
+  ) {
+    try {
+      return await db
+        .select({
+          id: conversations.id,
+          guestId: guests.id,
+          firstName: guests.firstName,
+          lastName: guests.lastName,
+          phoneNumber: guests.phoneNumber,
+          status: conversations.status,
+          unreadCount: conversations.unreadCount,
+          lastMessagePreview: conversations.lastMessagePreview,
+          lastMessageAt: conversations.lastMessageAt,
+          serviceWindowEndsAt: conversations.serviceWindowEndsAt,
+          whatsappPhoneNumberId: conversations.whatsappPhoneNumberId,
+        })
+        .from(conversations)
+        .innerJoin(guests, eq(conversations.guestId, guests.id))
+        .where(
+          and(
+            eq(conversations.channel, "whatsapp"),
+            phoneNumberId
+              ? eq(conversations.whatsappPhoneNumberId, phoneNumberId)
+              : undefined,
+          ),
+        )
+        .orderBy(desc(conversations.lastMessageAt))
+        .limit(100);
+    } catch (error) {
+      lastError = error;
+
+      if (
+        attempt === INBOX_QUERY_RETRY_DELAYS_MS.length ||
+        !shouldRetryInboxQuery(error)
+      ) {
+        throw error;
+      }
+
+      await wait(INBOX_QUERY_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError;
+}
+
 export default async (request: Request): Promise<Response> => {
   if (request.method !== "GET") {
     return new Response("Method not allowed", {
@@ -28,32 +106,7 @@ export default async (request: Request): Promise<Response> => {
     const phoneNumberId = sender
       ? getWhatsAppPhoneNumberId(sender as WhatsAppSenderKey)
       : null;
-    const results = await db
-      .select({
-        id: conversations.id,
-        guestId: guests.id,
-        firstName: guests.firstName,
-        lastName: guests.lastName,
-        phoneNumber: guests.phoneNumber,
-        status: conversations.status,
-        unreadCount: conversations.unreadCount,
-        lastMessagePreview: conversations.lastMessagePreview,
-        lastMessageAt: conversations.lastMessageAt,
-        serviceWindowEndsAt: conversations.serviceWindowEndsAt,
-        whatsappPhoneNumberId: conversations.whatsappPhoneNumberId,
-      })
-      .from(conversations)
-      .innerJoin(guests, eq(conversations.guestId, guests.id))
-      .where(
-        and(
-          eq(conversations.channel, "whatsapp"),
-          phoneNumberId
-            ? eq(conversations.whatsappPhoneNumberId, phoneNumberId)
-            : undefined,
-        ),
-      )
-      .orderBy(desc(conversations.lastMessageAt))
-      .limit(100);
+    const results = await loadInboxConversations(phoneNumberId);
 
     return Response.json({
       conversations: results.map(
