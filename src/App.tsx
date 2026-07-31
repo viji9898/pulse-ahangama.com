@@ -8,8 +8,10 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { Card, Col, Layout, Menu, Row, Statistic, Typography } from "antd";
+import type { MenuProps } from "antd";
 import { useState } from "react";
 import CampaignsPage from "./features/campaigns/CampaignsPage";
+import TestAudiencesPage from "./features/campaigns/TestAudiencesPage";
 import GuestProfileDrawer from "./features/guests/GuestProfileDrawer";
 import GuestsPage from "./features/guests/GuestsPage";
 import InboxPage from "./features/inbox/InboxPage";
@@ -17,7 +19,7 @@ import QuickSendPage from "./features/quick-send/QuickSendPage";
 
 const { Header, Sider, Content } = Layout;
 
-const menuItems = [
+const menuItems: MenuProps["items"] = [
   {
     key: "dashboard",
     icon: <DashboardOutlined />,
@@ -34,9 +36,19 @@ const menuItems = [
     label: "Inbox",
   },
   {
-    key: "campaigns",
+    key: "campaigns-menu",
     icon: <NotificationOutlined />,
     label: "Campaigns",
+    children: [
+      {
+        key: "campaigns",
+        label: "Campaigns",
+      },
+      {
+        key: "campaigns:test-audiences",
+        label: "Test Audiences",
+      },
+    ],
   },
   {
     key: "quick-send",
@@ -77,6 +89,7 @@ export default function App() {
           theme="dark"
           mode="inline"
           selectedKeys={[activePage]}
+          defaultOpenKeys={["campaigns-menu"]}
           onClick={({ key }) => setActivePage(key)}
           items={menuItems}
         />
@@ -107,11 +120,14 @@ export default function App() {
 
           {activePage === "campaigns" && <CampaignsPage />}
 
+          {activePage === "campaigns:test-audiences" && <TestAudiencesPage />}
+
           {activePage === "quick-send" && <QuickSendPage />}
 
           {activePage !== "inbox" &&
             activePage !== "guests" &&
             activePage !== "campaigns" &&
+            activePage !== "campaigns:test-audiences" &&
             activePage !== "quick-send" && (
               <>
                 <Typography.Title level={2}>Dashboard</Typography.Title>

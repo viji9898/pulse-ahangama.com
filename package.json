@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "test:webhook": "tsx --test netlify/functions/whatsapp-webhook.test.mts",
+    "test:webhook": "tsx --test tests/whatsapp-webhook.test.mts",
     "preview": "vite preview",
     "seed:test-audience": "tsx scripts/seed-test-audience.ts",
     "db:generate": "drizzle-kit generate",

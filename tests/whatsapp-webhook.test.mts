@@ -9,7 +9,7 @@ process.env.DATABASE_URL = "postgresql://test:test@localhost/test";
 process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN = verifyToken;
 process.env.META_APP_SECRET = appSecret;
 
-const { default: webhook } = await import("./whatsapp-webhook.mts");
+const { default: webhook } = await import("../netlify/functions/whatsapp-webhook.mts");
 
 function request(path = "", init?: RequestInit): Request {
   return new Request(`https://example.com/api/webhooks/whatsapp${path}`, init);
