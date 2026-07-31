@@ -46,6 +46,13 @@ export default async (request: Request): Promise<Response> => {
 
     return Response.json({
       recipientCount: recipients.length,
+      duplicateCount:
+        (input.audience?.audienceIds?.length ?? 0) > 0
+          ? recipients.reduce(
+              (sum, recipient) => sum + Math.max(0, recipient.sources.length - 1),
+              0,
+            )
+          : 0,
       costBreakdown,
       estimatedMetaCostUsd,
       venuePriceUsd,

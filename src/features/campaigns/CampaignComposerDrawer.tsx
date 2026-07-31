@@ -41,16 +41,30 @@ type RecipientPreview = {
   lastName: string | null;
   phoneNumber: string | null;
   accommodationName: string | null;
+  sources?: Array<{
+    audienceId: string;
+    audienceName: string;
+  }>;
 };
 
 type PreviewResponse = {
   recipientCount: number;
+  duplicateCount?: number;
   costBreakdown: WhatsAppCostBreakdown;
   estimatedMetaCostUsd: number;
   venuePriceUsd: number;
   estimatedGrossProfitUsd: number;
   estimatedMarginPercent: number | null;
   recipients: RecipientPreview[];
+};
+
+type TestAudience = {
+  id: string;
+  kind: "test" | "live";
+  name: string;
+  description: string | null;
+  active: boolean;
+  memberCount: number;
 };
 
 type ContentPreviewResponse = {
@@ -77,6 +91,7 @@ function formatUsd(value: number, precision = 4): string {
 
 type CampaignFormValues = {
   name: string;
+  audienceIds?: string[];
   campaignType:
     | "whats_on_today"
     | "featured_cafes"
@@ -118,6 +133,7 @@ export default function CampaignComposerDrawer({
   const campaignType = Form.useWatch("campaignType", form);
 
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [testAudiences, setTestAudiences] = useState<TestAudience[]>([]);
 
   const [contentPreview, setContentPreview] =
     useState<ContentPreviewResponse | null>(null);
@@ -125,11 +141,13 @@ export default function CampaignComposerDrawer({
   const [previewing, setPreviewing] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const selectedAudienceIds = Form.useWatch("audienceIds", form) ?? [];
 
   useEffect(() => {
     queueMicrotask(() => {
       if (open) {
         form.setFieldsValue({
+          audienceIds: [],
           campaignType: "venue_feature",
           content: {},
           currentlyStaying: true,
@@ -145,7 +163,45 @@ export default function CampaignComposerDrawer({
     });
   }, [open, form]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    void (async () => {
+      const [testResponse, liveResponse] = await Promise.all([
+        fetch("/api/test-audiences"),
+        fetch("/api/test-audiences?kind=live"),
+      ]);
+
+      if (!testResponse.ok || !liveResponse.ok) {
+        throw new Error("Unable to load saved audiences");
+      }
+
+      const [testData, liveData] = (await Promise.all([
+        testResponse.json(),
+        liveResponse.json(),
+      ])) as [{ audiences: TestAudience[] }, { audiences: TestAudience[] }];
+
+      setTestAudiences(
+        [...testData.audiences, ...liveData.audiences].filter(
+          (audience) => audience.active,
+        ),
+      );
+    })().catch((error) => {
+      message.error(
+        error instanceof Error ? error.message : "Unable to load saved audiences",
+      );
+    });
+  }, [open]);
+
   function buildAudience(values: CampaignFormValues) {
+    if (values.audienceIds?.length) {
+      return {
+        audienceIds: values.audienceIds,
+      };
+    }
+
     return {
       interests: values.interests,
       accommodationName: values.accommodationName,
@@ -277,6 +333,14 @@ export default function CampaignComposerDrawer({
       {
         title: "Phone",
         dataIndex: "phoneNumber",
+      },
+      {
+        title: "Audience sources",
+        key: "sources",
+        render: (_, guest) =>
+          guest.sources?.length
+            ? guest.sources.map((source) => source.audienceName).join(", ")
+            : "Search audience",
       },
       {
         title: "Stay",
@@ -413,17 +477,57 @@ export default function CampaignComposerDrawer({
 
         <Typography.Title level={4}>Audience</Typography.Title>
 
+        <Form.Item name="audienceIds" label="Saved audiences">
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="Select one or more live or test audiences"
+            options={[
+              {
+                label: "Live audiences",
+                options: testAudiences
+                  .filter((audience) => audience.kind === "live")
+                  .map((audience) => ({
+                    label: `${audience.name} (${audience.memberCount})`,
+                    value: audience.id,
+                  })),
+              },
+              {
+                label: "Test audiences",
+                options: testAudiences
+                  .filter((audience) => audience.kind === "test")
+                  .map((audience) => ({
+                    label: `${audience.name} (${audience.memberCount})`,
+                    value: audience.id,
+                  })),
+              },
+            ]}
+            onChange={() => {
+              setPreview(null);
+              setContentPreview(null);
+            }}
+          />
+        </Form.Item>
+
+        <Alert
+          type="info"
+          showIcon
+          message="Create the campaign, run a test send from the campaign detail view, then schedule the real send. When you select live audiences, duplicate phone numbers are removed across circle, hospo, pass_guests, and any other selected audiences before the campaign snapshot is created."
+          style={{ marginBottom: 16 }}
+        />
+
         <Form.Item name="interests" label="Interests">
           <Select
             mode="multiple"
             allowClear
             options={interestOptions}
             placeholder="Select interests"
+            disabled={selectedAudienceIds.length > 0}
           />
         </Form.Item>
 
         <Form.Item name="accommodationName" label="Accommodation contains">
-          <Input placeholder="Lighthouse" />
+          <Input placeholder="Lighthouse" disabled={selectedAudienceIds.length > 0} />
         </Form.Item>
 
         <Form.Item
@@ -431,7 +535,7 @@ export default function CampaignComposerDrawer({
           label="Currently staying in Ahangama"
           valuePropName="checked"
         >
-          <Switch />
+          <Switch disabled={selectedAudienceIds.length > 0} />
         </Form.Item>
 
         <Form.Item
@@ -443,6 +547,7 @@ export default function CampaignComposerDrawer({
             max={720}
             addonAfter="hours"
             style={{ width: 220 }}
+            disabled={selectedAudienceIds.length > 0}
           />
         </Form.Item>
 
@@ -512,6 +617,11 @@ export default function CampaignComposerDrawer({
             }}
           >
             <Statistic title="Recipients" value={preview.recipientCount} />
+
+            <Statistic
+              title="Duplicates removed"
+              value={preview.duplicateCount ?? 0}
+            />
 
             <Statistic
               title="Total Meta cost"
