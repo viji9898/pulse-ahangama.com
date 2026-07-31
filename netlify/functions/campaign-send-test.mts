@@ -1,5 +1,5 @@
 import type { Config } from "@netlify/functions";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   campaigns,
   campaignTestRecipients,
@@ -27,7 +27,10 @@ import { sendNamedTemplateMessage } from "./_shared/whatsapp-client.js";
 type RequestBody = {
   campaignId?: string;
   audienceId?: string;
+  resumeRunId?: string;
 };
+
+const SEND_CONCURRENCY = 5;
 
 export default async (request: Request): Promise<Response> => {
   if (request.method !== "POST") {
@@ -85,6 +88,10 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
+  const templateName = campaign.templateName;
+  const templateLanguage = campaign.templateLanguage;
+  const approvedTemplate = template;
+
   const members = await db
     .select({
       guestId: guests.id,
@@ -129,30 +136,75 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
-  const [testRun] = await db
-    .insert(campaignTestRuns)
-    .values({
-      campaignId: campaign.id,
-      audienceId: input.audienceId,
-      status: "sending",
-      recipientCount: uniqueEligibleMembers.length,
-      startedAt: new Date(),
-    })
-    .returning();
+  let testRun: typeof campaignTestRuns.$inferSelect;
+  let membersToSend = uniqueEligibleMembers;
 
-  await db.insert(campaignTestRecipients).values(
-    uniqueEligibleMembers.map((member) => ({
-      testRunId: testRun.id,
-      guestId: member.guestId,
-      phoneNumber: member.phoneNumber!,
-      status: "pending" as const,
-    })),
-  );
+  if (input.resumeRunId) {
+    const [existingRun] = await db
+      .select()
+      .from(campaignTestRuns)
+      .where(
+        and(
+          eq(campaignTestRuns.id, input.resumeRunId),
+          eq(campaignTestRuns.campaignId, campaign.id),
+          eq(campaignTestRuns.audienceId, input.audienceId),
+          eq(campaignTestRuns.status, "sending"),
+        ),
+      )
+      .limit(1);
+
+    if (!existingRun) {
+      return Response.json(
+        { error: "Resumable test run was not found" },
+        { status: 404 },
+      );
+    }
+
+    testRun = existingRun;
+    membersToSend = await db
+      .select({
+        guestId: guests.id,
+        firstName: guests.firstName,
+        phoneNumber: campaignTestRecipients.phoneNumber,
+        whatsappOptIn: guests.whatsappOptIn,
+      })
+      .from(campaignTestRecipients)
+      .innerJoin(guests, eq(campaignTestRecipients.guestId, guests.id))
+      .where(
+        and(
+          eq(campaignTestRecipients.testRunId, existingRun.id),
+          eq(campaignTestRecipients.status, "pending"),
+          eq(guests.whatsappOptIn, true),
+        ),
+      );
+  } else {
+    [testRun] = await db
+      .insert(campaignTestRuns)
+      .values({
+        campaignId: campaign.id,
+        audienceId: input.audienceId,
+        status: "sending",
+        recipientCount: uniqueEligibleMembers.length,
+        startedAt: new Date(),
+      })
+      .returning();
+
+    await db.insert(campaignTestRecipients).values(
+      uniqueEligibleMembers.map((member) => ({
+        testRunId: testRun.id,
+        guestId: member.guestId,
+        phoneNumber: member.phoneNumber!,
+        status: "pending" as const,
+      })),
+    );
+  }
 
   let sentCount = 0;
   let failedCount = 0;
 
-  for (const member of uniqueEligibleMembers) {
+  async function sendToMember(
+    member: (typeof membersToSend)[number],
+  ): Promise<void> {
     const baseVariables = campaign.templateVariables ?? {};
     const guestName = member.firstName || "there";
     const variables = {
@@ -174,46 +226,64 @@ export default async (request: Request): Promise<Response> => {
         ? getFeatureArticleButtonUrl(campaign.contentPayload.articleUrl)
         : undefined;
     const renderedBody = renderTemplateMessage({
-      templateName: campaign.templateName,
+      templateName,
       variables,
       buttonUrl,
     });
     const headerImageUrl =
-      getTemplateHeaderImageUrl(campaign.templateName) ??
-      getTemplateHeaderExampleImageUrl(template);
+      getTemplateHeaderImageUrl(templateName) ??
+      getTemplateHeaderExampleImageUrl(approvedTemplate);
     const buttonUrlSuffix =
-      campaign.templateName === "qs_feature_article_ahangama_pass"
+      templateName === "qs_feature_article_ahangama_pass"
         ? undefined
         : buildCampaignTemplate(campaign.contentPayload).buttonUrlSuffix;
 
-    const [pendingMessage] = await db
-      .insert(messages)
-      .values({
-        conversationId: conversation.id,
-        guestId: member.guestId,
-        campaignId: campaign.id,
-        channel: "whatsapp",
-        direction: "outbound",
-        status: "queued",
-        messageType: "template",
-        body: renderedBody,
-        providerPayload: {
-          templateName: campaign.templateName,
-          languageCode: campaign.templateLanguage,
-          senderKey: campaign.whatsappSenderKey,
-          headerImageUrl,
-          buttonUrlSuffix,
-          variables,
-          testRunId: testRun.id,
-        },
-      })
-      .returning();
+    const [existingQueuedMessage] = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.campaignId, campaign.id),
+          eq(messages.guestId, member.guestId),
+          eq(messages.status, "queued"),
+          sql`${messages.providerPayload}->>'testRunId' = ${testRun.id}`,
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+
+    const pendingMessage =
+      existingQueuedMessage ??
+      (
+        await db
+          .insert(messages)
+          .values({
+            conversationId: conversation.id,
+            guestId: member.guestId,
+            campaignId: campaign.id,
+            channel: "whatsapp",
+            direction: "outbound",
+            status: "queued",
+            messageType: "template",
+            body: renderedBody,
+            providerPayload: {
+              templateName,
+              languageCode: templateLanguage,
+              senderKey: campaign.whatsappSenderKey,
+              headerImageUrl,
+              buttonUrlSuffix,
+              variables,
+              testRunId: testRun.id,
+            },
+          })
+          .returning()
+      )[0];
 
     try {
       const result = await sendNamedTemplateMessage({
         to: member.phoneNumber!,
-        templateName: campaign.templateName,
-        languageCode: campaign.templateLanguage,
+        templateName,
+        languageCode: templateLanguage,
         variables,
         headerImageUrl,
         buttonUrlSuffix,
@@ -235,8 +305,8 @@ export default async (request: Request): Promise<Response> => {
           status: "sent",
           sentAt,
           providerPayload: {
-            templateName: campaign.templateName,
-            languageCode: campaign.templateLanguage,
+            templateName,
+            languageCode: templateLanguage,
             senderKey: campaign.whatsappSenderKey,
             headerImageUrl,
             buttonUrlSuffix,
@@ -282,7 +352,7 @@ export default async (request: Request): Promise<Response> => {
           failedAt,
           providerPayload: {
             error: errorMessage,
-            templateName: campaign.templateName,
+            templateName,
             headerImageUrl,
             buttonUrlSuffix,
             variables,
@@ -309,11 +379,36 @@ export default async (request: Request): Promise<Response> => {
     }
   }
 
+  for (let index = 0; index < membersToSend.length; index += SEND_CONCURRENCY) {
+    await Promise.all(
+      membersToSend
+        .slice(index, index + SEND_CONCURRENCY)
+        .map(sendToMember),
+    );
+  }
+
+  const finalRecipients = await db
+    .select({ status: campaignTestRecipients.status })
+    .from(campaignTestRecipients)
+    .where(eq(campaignTestRecipients.testRunId, testRun.id));
+
+  sentCount = finalRecipients.filter((recipient) =>
+    ["sent", "delivered", "read"].includes(recipient.status),
+  ).length;
+  failedCount = finalRecipients.filter(
+    (recipient) => recipient.status === "failed",
+  ).length;
+  const pendingCount = finalRecipients.length - sentCount - failedCount;
+
   await db
     .update(campaignTestRuns)
     .set({
       status:
-        failedCount === uniqueEligibleMembers.length ? "failed" : "completed",
+        pendingCount > 0
+          ? "sending"
+          : failedCount === finalRecipients.length
+            ? "failed"
+            : "completed",
       sentCount,
       failedCount,
       completedAt: new Date(),
@@ -330,11 +425,13 @@ export default async (request: Request): Promise<Response> => {
     .where(eq(campaigns.id, campaign.id));
 
   return Response.json({
-    ok: failedCount === 0,
+    ok: failedCount === 0 && pendingCount === 0,
     testRunId: testRun.id,
-    recipientCount: uniqueEligibleMembers.length,
+    recipientCount: finalRecipients.length,
+    attemptedCount: membersToSend.length,
     sentCount,
     failedCount,
+    pendingCount,
   });
 };
 

@@ -64,6 +64,12 @@ async function saveWebhookEvent(
 function getIncomingMessageBody(
   incomingMessage: WhatsAppInboundMessage,
 ): string {
+  if (incomingMessage.type === "reaction") {
+    return incomingMessage.reaction?.emoji
+      ? `Reacted ${incomingMessage.reaction.emoji} to a message`
+      : "Removed a reaction";
+  }
+
   return (
     incomingMessage.text?.body ||
     incomingMessage.button?.text ||

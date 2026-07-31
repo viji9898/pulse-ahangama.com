@@ -10,6 +10,10 @@ export type WhatsAppInboundMessage = {
     text?: string;
     payload?: string;
   };
+  reaction?: {
+    emoji?: string;
+    message_id?: string;
+  };
   interactive?: {
     type?: "button_reply" | "list_reply";
     button_reply?: {
