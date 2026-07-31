@@ -641,20 +641,18 @@ export default function LiveAudiencesPage() {
             </Row>
           ) : null}
 
-          {audienceKind !== "circle" ? (
-            <Row gutter={16}>
-              <Col xs={24} md={12}>
-                <Form.Item label="WhatsApp opt-in" name="whatsappOptIn" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={12}>
-                <Form.Item label="Marketing opt-in" name="emailOptIn" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-            </Row>
-          ) : null}
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item label="WhatsApp opt-in" name="whatsappOptIn" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="Marketing opt-in" name="emailOptIn" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </Space>

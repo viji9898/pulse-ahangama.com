@@ -21,6 +21,8 @@ type CircleRow = {
   member_type: string | null;
   venue_name: string | null;
   pass_status: string | null;
+  whatsapp_opt_in: boolean | null;
+  marketing_consent: boolean | null;
 };
 
 type HospoRow = {
@@ -33,6 +35,7 @@ type HospoRow = {
   audience_type: string | null;
   whatsapp_opt_in: boolean | null;
   wants_partner_updates: boolean | null;
+  marketing_consent: boolean | null;
 };
 
 type PassGuestRow = {
@@ -216,7 +219,7 @@ export async function getLiveAudienceMembers(audienceId: string) {
   if (key === "circle") {
     const rows = (
       await passDb.execute(
-        sql`select id, name, email, mobile, member_type, venue_name, pass_status from circle order by name asc nulls last`,
+        sql`select id, name, email, mobile, member_type, venue_name, pass_status, whatsapp_opt_in, marketing_consent from circle order by name asc nulls last`,
       )
     ).rows as CircleRow[];
 
@@ -230,8 +233,8 @@ export async function getLiveAudienceMembers(audienceId: string) {
         email: row.email,
         phoneNumber: row.mobile,
         normalizedPhoneNumber: normalizePhoneNumber(row.mobile),
-        whatsappOptIn: false,
-        emailOptIn: false,
+        whatsappOptIn: row.whatsapp_opt_in ?? false,
+        emailOptIn: row.marketing_consent ?? false,
         memberType: row.member_type,
         venueName: row.venue_name,
         passStatus: row.pass_status,
@@ -242,7 +245,7 @@ export async function getLiveAudienceMembers(audienceId: string) {
   if (key === "hospo") {
     const rows = (
       await passDb.execute(
-        sql`select id, pass_id, full_name, email, phone, source_hotel_slug, audience_type, whatsapp_opt_in, wants_partner_updates from hospo_pass_profiles order by full_name asc nulls last`,
+        sql`select id, pass_id, full_name, email, phone, source_hotel_slug, audience_type, whatsapp_opt_in, wants_partner_updates, marketing_consent from hospo_pass_profiles order by full_name asc nulls last`,
       )
     ).rows as HospoRow[];
 
@@ -257,7 +260,7 @@ export async function getLiveAudienceMembers(audienceId: string) {
         phoneNumber: row.phone,
         normalizedPhoneNumber: normalizePhoneNumber(row.phone),
         whatsappOptIn: row.whatsapp_opt_in ?? false,
-        emailOptIn: row.wants_partner_updates ?? false,
+        emailOptIn: row.marketing_consent ?? row.wants_partner_updates ?? false,
         audienceType: row.audience_type,
         sourceHotelSlug: row.source_hotel_slug,
       };
@@ -327,13 +330,15 @@ export async function saveLiveAudienceMember(input: SaveLiveAudienceMemberInput)
             mobile = ${phoneNumber},
             member_type = ${memberType},
             venue_name = ${trimToNull(input.venueName)},
+            whatsapp_opt_in = ${input.whatsappOptIn ?? false},
+            marketing_consent = ${input.emailOptIn ?? false},
             updated_at = now()
         where id = ${input.memberId}
       `);
     } else {
       await passDb.execute(sql`
-        insert into circle (name, email, mobile, member_type, venue_name)
-        values (${fullName}, ${email}, ${phoneNumber}, ${memberType}, ${trimToNull(input.venueName)})
+        insert into circle (name, email, mobile, member_type, venue_name, whatsapp_opt_in, marketing_consent)
+        values (${fullName}, ${email}, ${phoneNumber}, ${memberType}, ${trimToNull(input.venueName)}, ${input.whatsappOptIn ?? false}, ${input.emailOptIn ?? false})
       `);
     }
 
@@ -369,6 +374,7 @@ export async function saveLiveAudienceMember(input: SaveLiveAudienceMemberInput)
             source_hotel_slug = ${trimToNull(input.sourceHotelSlug)},
             audience_type = ${audienceType},
             whatsapp_opt_in = ${input.whatsappOptIn ?? false},
+            marketing_consent = ${input.emailOptIn ?? false},
             wants_partner_updates = ${input.emailOptIn ?? false},
             updated_at = now()
         where id = ${input.memberId}
@@ -404,6 +410,7 @@ export async function saveLiveAudienceMember(input: SaveLiveAudienceMemberInput)
           source_hotel_slug,
           audience_type,
           whatsapp_opt_in,
+          marketing_consent,
           wants_partner_updates
         )
         values (
@@ -415,6 +422,7 @@ export async function saveLiveAudienceMember(input: SaveLiveAudienceMemberInput)
           ${trimToNull(input.sourceHotelSlug)},
           ${audienceType},
           ${input.whatsappOptIn ?? false},
+          ${input.emailOptIn ?? false},
           ${input.emailOptIn ?? false}
         )
       `);
