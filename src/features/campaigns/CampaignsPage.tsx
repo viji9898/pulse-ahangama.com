@@ -70,6 +70,43 @@ type TestResult = {
   failedCount: number;
 };
 
+type WhatsAppTokenStatus = {
+  appId: string | null;
+  type: string | null;
+  application: string | null;
+  isValid: boolean;
+  expiresAt: string | null;
+  dataAccessExpiresAt: string | null;
+  scopes: string[];
+};
+
+function formatCountdown(expiresAt: string | null, nowMs: number): string {
+  if (!expiresAt) {
+    return "No expiry reported";
+  }
+
+  const diffMs = new Date(expiresAt).getTime() - nowMs;
+
+  if (Number.isNaN(diffMs)) {
+    return "Invalid expiry";
+  }
+
+  if (diffMs <= 0) {
+    return "Expired";
+  }
+
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  return `${minutes}m ${seconds}s`;
+}
+
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
@@ -91,6 +128,9 @@ export default function CampaignsPage() {
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [sendingNow, setSendingNow] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState<WhatsAppTokenStatus | null>(null);
+  const [loadingTokenStatus, setLoadingTokenStatus] = useState(true);
+  const [tokenNowMs, setTokenNowMs] = useState(() => Date.now());
 
   async function loadCampaigns() {
     setLoading(true);
@@ -138,6 +178,34 @@ export default function CampaignsPage() {
 
     if (defaultAudience) {
       setSelectedAudienceId(defaultAudience.id);
+    }
+  }
+
+  async function loadTokenStatus() {
+    setLoadingTokenStatus(true);
+
+    try {
+      const response = await fetch("/api/whatsapp-token-status");
+      const result = (await response.json()) as {
+        ok: boolean;
+        error?: string;
+        token?: WhatsAppTokenStatus;
+      };
+
+      if (!response.ok || !result.ok || !result.token) {
+        throw new Error(result.error || "Unable to load WhatsApp token status");
+      }
+
+      setTokenStatus(result.token);
+      setTokenNowMs(Date.now());
+    } catch (error) {
+      message.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to load WhatsApp token status",
+      );
+    } finally {
+      setLoadingTokenStatus(false);
     }
   }
 
@@ -339,7 +407,16 @@ export default function CampaignsPage() {
             : "Unable to load test audiences",
         );
       });
+      void loadTokenStatus();
     });
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setTokenNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -451,6 +528,25 @@ export default function CampaignsPage() {
     0,
   );
 
+  const tokenCountdown = formatCountdown(tokenStatus?.expiresAt ?? null, tokenNowMs);
+  const tokenExpiryMs = tokenStatus?.expiresAt
+    ? new Date(tokenStatus.expiresAt).getTime()
+    : null;
+  const tokenMinutesLeft =
+    tokenExpiryMs != null ? Math.floor((tokenExpiryMs - tokenNowMs) / 60000) : null;
+  const tokenTagColor =
+    tokenStatus?.isValid === false || tokenCountdown === "Expired"
+      ? "red"
+      : tokenMinutesLeft != null && tokenMinutesLeft <= 60
+        ? "orange"
+        : "green";
+  const tokenTagLabel =
+    tokenStatus?.isValid === false || tokenCountdown === "Expired"
+      ? "Expired"
+      : tokenMinutesLeft != null && tokenMinutesLeft <= 60
+        ? "Expiring soon"
+        : "Healthy";
+
   return (
     <Space direction="vertical" size={20} style={{ width: "100%" }}>
       <div
@@ -526,6 +622,16 @@ export default function CampaignsPage() {
             precision={2}
             prefix="$"
           />
+        </Card>
+
+        <Card
+          loading={loadingTokenStatus}
+          extra={<Tag color={tokenTagColor}>{tokenTagLabel}</Tag>}
+        >
+          <Statistic title="WhatsApp token" value={tokenCountdown} />
+          <Typography.Text type="secondary">
+            Expires {tokenStatus?.expiresAt ? new Date(tokenStatus.expiresAt).toLocaleString() : "unknown"}
+          </Typography.Text>
         </Card>
       </div>
 
