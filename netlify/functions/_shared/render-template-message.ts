@@ -73,6 +73,20 @@ export function renderTemplateMessage(input: {
     ].join("\n");
   }
 
+  if (templateName === "feature_event_soul_therapy") {
+    return [
+      `Hello ${variables.customer_name || "there"}`,
+      "",
+      "Soul Therapy Music kick off their monthly residency at Midigama Surf Club. Playing deep soulful grooves come and join us for sunset and into the night.",
+      "",
+      "SATURDAY 01 AUGUST 17:00 - 23:00",
+      "",
+      "Unsubscribe",
+      "Make a Reservation",
+      "Instagram",
+    ].join("\n");
+  }
+
   if (templateName === "feature_article") {
     return [
       "Feature Article",

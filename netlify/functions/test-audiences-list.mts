@@ -3,6 +3,10 @@ import { count, desc, eq } from "drizzle-orm";
 import { testAudienceMembers, testAudiences } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
 
+function parseAudienceKind(value: string | null): "test" | "live" {
+  return value === "live" ? "live" : "test";
+}
+
 export default async (request: Request): Promise<Response> => {
   if (request.method !== "GET") {
     return new Response("Method not allowed", {
@@ -10,6 +14,9 @@ export default async (request: Request): Promise<Response> => {
       headers: { Allow: "GET" },
     });
   }
+
+  const url = new URL(request.url);
+  const audienceKind = parseAudienceKind(url.searchParams.get("kind"));
 
   const results = await db
     .select({
@@ -25,6 +32,7 @@ export default async (request: Request): Promise<Response> => {
       testAudienceMembers,
       eq(testAudienceMembers.audienceId, testAudiences.id),
     )
+    .where(eq(testAudiences.kind, audienceKind))
     .groupBy(testAudiences.id)
     .orderBy(desc(testAudiences.createdAt));
 

@@ -38,6 +38,13 @@ export const ahangamaGuideContentSchema = z.object({
   guideLink: urlSchema,
 });
 
+export const featureEventSoulTherapyContentSchema = z.object({
+  type: z.literal("feature_event_soul_therapy"),
+  imageUrl: urlSchema,
+  instagramUrl: urlSchema,
+  callUsNumber: z.string().min(7).max(40),
+});
+
 export const wellnessPickContentSchema = z.object({
   type: z.literal("wellness_pick"),
   venueName: z.string().min(2).max(120),
@@ -70,6 +77,7 @@ export const campaignContentSchema = z.discriminatedUnion("type", [
   whatsOnContentSchema,
   featuredCafesContentSchema,
   ahangamaGuideContentSchema,
+  featureEventSoulTherapyContentSchema,
   venueFeatureContentSchema,
   wellnessPickContentSchema,
   featureArticleContentSchema,

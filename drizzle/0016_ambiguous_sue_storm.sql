@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_type" ADD VALUE 'feature_event_soul_therapy' BEFORE 'venue_feature';

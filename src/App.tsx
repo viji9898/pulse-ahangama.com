@@ -11,6 +11,7 @@ import { Card, Col, Layout, Menu, Row, Statistic, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { useState } from "react";
 import CampaignsPage from "./features/campaigns/CampaignsPage";
+import LiveAudiencesPage from "./features/campaigns/LiveAudiencesPage";
 import TestAudiencesPage from "./features/campaigns/TestAudiencesPage";
 import GuestProfileDrawer from "./features/guests/GuestProfileDrawer";
 import GuestsPage from "./features/guests/GuestsPage";
@@ -47,6 +48,10 @@ const menuItems: MenuProps["items"] = [
       {
         key: "campaigns:test-audiences",
         label: "Test Audiences",
+      },
+      {
+        key: "campaigns:live-audiences",
+        label: "Live Audiences",
       },
     ],
   },
@@ -122,12 +127,15 @@ export default function App() {
 
           {activePage === "campaigns:test-audiences" && <TestAudiencesPage />}
 
+          {activePage === "campaigns:live-audiences" && <LiveAudiencesPage />}
+
           {activePage === "quick-send" && <QuickSendPage />}
 
           {activePage !== "inbox" &&
             activePage !== "guests" &&
             activePage !== "campaigns" &&
             activePage !== "campaigns:test-audiences" &&
+            activePage !== "campaigns:live-audiences" &&
             activePage !== "quick-send" && (
               <>
                 <Typography.Title level={2}>Dashboard</Typography.Title>

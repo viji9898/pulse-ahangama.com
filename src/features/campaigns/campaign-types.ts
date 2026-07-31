@@ -23,6 +23,12 @@ export type CampaignContent =
       guideLink: string;
     }
   | {
+      type: "feature_event_soul_therapy";
+      imageUrl: string;
+      instagramUrl: string;
+      callUsNumber: string;
+    }
+  | {
       type: "venue_feature";
       venueName: string;
       description: string;

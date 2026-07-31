@@ -1,5 +1,5 @@
 import type { Config } from "@netlify/functions";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   guests,
   testAudienceMembers,
@@ -16,6 +16,7 @@ type AudienceMemberInput = {
 
 type RequestBody = {
   audienceId?: string;
+  kind?: "test" | "live";
   name?: string;
   description?: string;
   active?: boolean;
@@ -24,6 +25,10 @@ type RequestBody = {
 
 function normalizePhoneNumber(value: string): string {
   return value.replace(/\D/g, "");
+}
+
+function parseAudienceKind(value: RequestBody["kind"]): "test" | "live" {
+  return value === "live" ? "live" : "test";
 }
 
 export default async (request: Request): Promise<Response> => {
@@ -35,6 +40,7 @@ export default async (request: Request): Promise<Response> => {
   }
 
   const input = (await request.json()) as RequestBody;
+  const audienceKind = parseAudienceKind(input.kind);
   const name = input.name?.trim();
   const members = (input.members ?? [])
     .map((member) => {
@@ -55,6 +61,7 @@ export default async (request: Request): Promise<Response> => {
       members.map((member) => [member.normalizedPhoneNumber, member]),
     ).values(),
   );
+  const minMembers = audienceKind === "live" ? 0 : 1;
 
   if (!name) {
     return Response.json(
@@ -63,10 +70,13 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
-  if (!uniqueMembers.length || uniqueMembers.length > 20) {
+  if (uniqueMembers.length < minMembers || uniqueMembers.length > 20) {
     return Response.json(
       {
-        error: "A test audience must contain between 1 and 20 guests",
+        error:
+          audienceKind === "live"
+            ? "A live audience can contain up to 20 guests"
+            : "A test audience must contain between 1 and 20 guests",
       },
       { status: 400 },
     );
@@ -84,7 +94,12 @@ export default async (request: Request): Promise<Response> => {
           active: input.active ?? true,
           updatedAt: new Date(),
         })
-        .where(eq(testAudiences.id, input.audienceId))
+        .where(
+          and(
+            eq(testAudiences.id, input.audienceId),
+            eq(testAudiences.kind, audienceKind),
+          ),
+        )
         .returning();
 
       if (!updated) {
@@ -100,6 +115,7 @@ export default async (request: Request): Promise<Response> => {
       [savedAudience] = await tx
         .insert(testAudiences)
         .values({
+          kind: audienceKind,
           name,
           description: input.description?.trim() || null,
           active: input.active ?? true,
@@ -137,12 +153,14 @@ export default async (request: Request): Promise<Response> => {
       guestIds.push(guest.id);
     }
 
-    await tx.insert(testAudienceMembers).values(
-      guestIds.map((guestId) => ({
-        audienceId: savedAudience.id,
-        guestId,
-      })),
-    );
+    if (guestIds.length > 0) {
+      await tx.insert(testAudienceMembers).values(
+        guestIds.map((guestId) => ({
+          audienceId: savedAudience.id,
+          guestId,
+        })),
+      );
+    }
 
     return savedAudience;
   });

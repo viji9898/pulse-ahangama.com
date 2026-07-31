@@ -18,6 +18,9 @@ export const AHANGAMA_GUIDE_HEADER_IMAGE_URL =
 export const AHANGAMA_PASS_FEATURE_ARTICLE_HEADER_IMAGE_URL =
   "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-pulse/ahangama-com/feature-article_inside-the-launch-of-ahangama-circle.jpg";
 
+export const FEATURE_EVENT_SOUL_THERAPY_HEADER_IMAGE_URL =
+  "https://customer-apps-techhq.s3.eu-west-2.amazonaws.com/app-ahangama-pulse/surfclub-midigama/soul_therapy.jpg";
+
 export function getTemplateHeaderImageUrl(
   templateName: string,
 ): string | undefined {
@@ -31,6 +34,10 @@ export function getTemplateHeaderImageUrl(
 
   if (templateName === "qs_feature_article_ahangama_pass") {
     return AHANGAMA_PASS_FEATURE_ARTICLE_HEADER_IMAGE_URL;
+  }
+
+  if (templateName === "feature_event_soul_therapy") {
+    return FEATURE_EVENT_SOUL_THERAPY_HEADER_IMAGE_URL;
   }
 
   return undefined;
@@ -157,6 +164,29 @@ export function buildCampaignTemplate(
           "",
           "Open the Guide: https://ahangama.com/guide?utm_source=whatsapp&utm_medium=message&utm_campaign=ahangama_guide_2026_27&utm_content=broadcast_v1",
           "Get Recommendations",
+        ].join("\n"),
+      };
+
+    case "feature_event_soul_therapy":
+      return {
+        templateName: "feature_event_soul_therapy",
+        languageCode: "en",
+        headerImageUrl: FEATURE_EVENT_SOUL_THERAPY_HEADER_IMAGE_URL,
+        variables: {
+          customer_name: "there",
+        },
+        preview: [
+          "Soul Therapy Music",
+          "",
+          "Hello there",
+          "",
+          "Soul Therapy Music kick off their monthly residency at Midigama Surf Club. Playing deep soulful grooves, come and join us for sunset and into the night.",
+          "",
+          "SATURDAY 01 AUGUST 17:00 - 23:00",
+          "",
+          `Make a Reservation: ${content.callUsNumber.trim()}`,
+          `Instagram: ${content.instagramUrl.trim()}`,
+          "Unsubscribe",
         ].join("\n"),
       };
 

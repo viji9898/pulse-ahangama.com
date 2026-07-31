@@ -21,6 +21,7 @@ import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import AhangamaGuideForm from "./content/AhangamaGuideForm";
+import FeatureEventSoulTherapyForm from "./content/FeatureEventSoulTherapyForm";
 import FeatureArticleForm from "./content/FeatureArticleForm";
 import FeaturedCafesForm from "./content/FeaturedCafesForm";
 import VenueFeatureForm from "./content/VenueFeatureForm";
@@ -80,6 +81,7 @@ type CampaignFormValues = {
     | "whats_on_today"
     | "featured_cafes"
     | "ahangama_guide"
+    | "feature_event_soul_therapy"
     | "venue_feature"
     | "wellness_pick"
     | "feature_article";
@@ -348,6 +350,10 @@ export default function CampaignComposerDrawer({
                 value: "ahangama_guide",
               },
               {
+                label: "Feature Event: Soul Therapy",
+                value: "feature_event_soul_therapy",
+              },
+              {
                 label: "Venue Feature",
                 value: "venue_feature",
               },
@@ -392,6 +398,10 @@ export default function CampaignComposerDrawer({
   {campaignType === "featured_cafes" && <FeaturedCafesForm />}
 
     {campaignType === "ahangama_guide" && <AhangamaGuideForm />}
+
+        {campaignType === "feature_event_soul_therapy" && (
+          <FeatureEventSoulTherapyForm />
+        )}
 
         {campaignType === "venue_feature" && <VenueFeatureForm />}
 

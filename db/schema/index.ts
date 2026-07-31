@@ -48,6 +48,7 @@ export const campaignTypeEnum = pgEnum("campaign_type", [
   "whats_on_today",
   "featured_cafes",
   "ahangama_guide",
+  "feature_event_soul_therapy",
   "venue_feature",
   "wellness_pick",
   "feature_article",
@@ -57,6 +58,8 @@ export const whatsappSenderEnum = pgEnum("whatsapp_sender", [
   "ahangama",
   "ahangama_pass",
 ]);
+
+export const audienceKindEnum = pgEnum("audience_kind", ["test", "live"]);
 
 export const guests = pgTable(
   "guests",
@@ -160,6 +163,12 @@ export const campaigns = pgTable(
             type: "ahangama_guide";
             heroImage: string;
             guideLink: string;
+          }
+        | {
+            type: "feature_event_soul_therapy";
+            imageUrl: string;
+            instagramUrl: string;
+            callUsNumber: string;
           }
         | {
             type: "venue_feature";
@@ -460,18 +469,23 @@ export const guestNotes = pgTable(
   (table) => [index("guest_notes_guest_idx").on(table.guestId)],
 );
 
-export const testAudiences = pgTable("test_audiences", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: varchar("name", { length: 150 }).notNull(),
-  description: text("description"),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const testAudiences = pgTable(
+  "test_audiences",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: audienceKindEnum("kind").default("test").notNull(),
+    name: varchar("name", { length: 150 }).notNull(),
+    description: text("description"),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("test_audiences_kind_idx").on(table.kind)],
+);
 
 export const testAudienceMembers = pgTable(
   "test_audience_members",
