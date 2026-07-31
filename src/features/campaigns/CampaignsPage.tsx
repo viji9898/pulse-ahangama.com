@@ -90,6 +90,7 @@ export default function CampaignsPage() {
   const [updatingAudience, setUpdatingAudience] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [scheduling, setScheduling] = useState(false);
+  const [sendingNow, setSendingNow] = useState(false);
 
   async function loadCampaigns() {
     setLoading(true);
@@ -286,6 +287,45 @@ export default function CampaignsPage() {
       );
     } finally {
       setScheduling(false);
+    }
+  }
+
+  async function sendCampaignNow() {
+    if (!selectedCampaign) return;
+
+    setSendingNow(true);
+
+    try {
+      const response = await fetch("/api/campaigns/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          campaignId: selectedCampaign.id,
+          sendNow: true,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to send campaign now");
+      }
+
+      message.success("Campaign sending started");
+      setSelectedCampaign(null);
+      setTestResult(null);
+      setSelectedDate(null);
+      await loadCampaigns();
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "Unable to send campaign now",
+      );
+    } finally {
+      setSendingNow(false);
     }
   }
 
@@ -644,7 +684,17 @@ export default function CampaignsPage() {
 
             {testResult && (
               <Space direction="vertical" style={{ width: "100%" }}>
-                <Typography.Text strong>Schedule</Typography.Text>
+                <Typography.Text strong>Send</Typography.Text>
+                <Button
+                  type="primary"
+                  loading={sendingNow}
+                  onClick={() => void sendCampaignNow()}
+                >
+                  Send now
+                </Button>
+                <Typography.Text type="secondary">
+                  Start the live campaign immediately, or choose a future time below.
+                </Typography.Text>
                 <DatePicker
                   showTime
                   value={selectedDate}
@@ -653,9 +703,8 @@ export default function CampaignsPage() {
                   onChange={setSelectedDate}
                 />
                 <Button
-                  type="primary"
                   loading={scheduling}
-                  disabled={!selectedDate}
+                  disabled={!selectedDate || sendingNow}
                   onClick={() => void scheduleCampaign()}
                 >
                   Schedule campaign

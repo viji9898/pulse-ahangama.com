@@ -2,10 +2,12 @@ import type { Config } from "@netlify/functions";
 import { eq } from "drizzle-orm";
 import { campaigns, campaignTestRuns } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
+import { triggerCampaignSendBackground } from "./_shared/internal-api.js";
 
 type RequestBody = {
   campaignId?: string;
   scheduledAt?: string;
+  sendNow?: boolean;
 };
 
 export default async (request: Request): Promise<Response> => {
@@ -18,18 +20,18 @@ export default async (request: Request): Promise<Response> => {
 
   const input = (await request.json()) as RequestBody;
 
-  if (!input.campaignId || !input.scheduledAt) {
+  if (!input.campaignId || (!input.sendNow && !input.scheduledAt)) {
     return Response.json(
-      { error: "campaignId and scheduledAt are required" },
+      { error: "campaignId and either scheduledAt or sendNow are required" },
       { status: 400 },
     );
   }
 
-  const scheduledAt = new Date(input.scheduledAt);
+  const scheduledAt = input.sendNow ? new Date() : new Date(input.scheduledAt!);
 
   if (
     Number.isNaN(scheduledAt.getTime()) ||
-    scheduledAt.getTime() <= Date.now()
+    (!input.sendNow && scheduledAt.getTime() <= Date.now())
   ) {
     return Response.json(
       { error: "Schedule must be a valid future time" },
@@ -67,16 +69,38 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
+  const nextStatus = input.sendNow ? "sending" : "scheduled";
+  const startedAt = input.sendNow ? new Date() : null;
+
   const [updated] = await db
     .update(campaigns)
     .set({
-      status: "scheduled",
+      status: nextStatus,
       scheduledAt,
       testApprovedAt: new Date(),
+      startedAt,
+      completedAt: null,
       updatedAt: new Date(),
     })
     .where(eq(campaigns.id, campaign.id))
     .returning();
+
+  if (input.sendNow) {
+    try {
+      await triggerCampaignSendBackground(campaign.id);
+    } catch (error) {
+      await db
+        .update(campaigns)
+        .set({
+          status: "scheduled",
+          startedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(campaigns.id, campaign.id));
+
+      throw error;
+    }
+  }
 
   return Response.json({
     ok: true,
