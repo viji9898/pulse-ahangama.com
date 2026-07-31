@@ -1,18 +1,13 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined } from "@ant-design/icons";
 import {
   Button,
   Card,
   Col,
   Descriptions,
   Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
   Row,
   Space,
   Statistic,
-  Switch,
   Table,
   Typography,
   message,
@@ -36,19 +31,7 @@ type LiveAudienceMember = {
   phoneNumber: string | null;
   normalizedPhoneNumber: string | null;
   whatsappOptIn: boolean;
-};
-
-type AudienceFormValues = {
-  audienceId?: string;
-  name: string;
-  description?: string;
-  active: boolean;
-  members: Array<{
-    firstName?: string;
-    lastName?: string;
-    phoneNumber: string;
-    countryCode?: string;
-  }>;
+  emailOptIn: boolean;
 };
 
 const audienceColumns: ColumnsType<LiveAudience> = [
@@ -101,19 +84,20 @@ const memberColumns: ColumnsType<LiveAudienceMember> = [
     key: "whatsappOptIn",
     render: (value: boolean) => (value ? "Yes" : "No"),
   },
+  {
+    title: "Marketing opt-in",
+    dataIndex: "emailOptIn",
+    key: "emailOptIn",
+    render: (value: boolean) => (value ? "Yes" : "No"),
+  },
 ];
 
 export default function LiveAudiencesPage() {
-  const [form] = Form.useForm<AudienceFormValues>();
   const [audiences, setAudiences] = useState<LiveAudience[]>([]);
   const [selectedAudience, setSelectedAudience] = useState<LiveAudience | null>(null);
   const [members, setMembers] = useState<LiveAudienceMember[]>([]);
   const [loadingAudiences, setLoadingAudiences] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [savingAudience, setSavingAudience] = useState(false);
-  const [deletingAudience, setDeletingAudience] = useState(false);
-  const [editingAudienceId, setEditingAudienceId] = useState<string | null>(null);
 
   function memberToLabel(member: LiveAudienceMember): string {
     return [member.firstName, member.lastName].filter(Boolean).join(" ") || "-";
@@ -197,115 +181,6 @@ export default function LiveAudiencesPage() {
     void loadAudiences();
   }, []);
 
-  function openCreateModal() {
-    setEditingAudienceId(null);
-    form.setFieldsValue({
-      name: "",
-      description: "",
-      active: true,
-      members: [{ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" }],
-    });
-    setModalOpen(true);
-  }
-
-  function openEditModal() {
-    if (!selectedAudience) {
-      return;
-    }
-
-    setEditingAudienceId(selectedAudience.id);
-    form.setFieldsValue({
-      audienceId: selectedAudience.id,
-      name: selectedAudience.name,
-      description: selectedAudience.description || "",
-      active: selectedAudience.active,
-      members: members.length
-        ? members.map((member) => ({
-            firstName: member.firstName || "",
-            lastName: member.lastName || "",
-            phoneNumber: member.phoneNumber || member.normalizedPhoneNumber || "",
-            countryCode: "LK",
-          }))
-        : [{ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" }],
-    });
-    setModalOpen(true);
-  }
-
-  async function saveAudience() {
-    try {
-      const values = await form.validateFields();
-      setSavingAudience(true);
-
-      const response = await fetch("/api/test-audiences/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...values,
-          kind: "live",
-        }),
-      });
-
-      const result = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        audience?: LiveAudience;
-      };
-
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to save live audience");
-      }
-
-      message.success(editingAudienceId ? "Live audience updated" : "Live audience created");
-      setModalOpen(false);
-      form.resetFields();
-      await loadAudiences(result.audience?.id ?? values.audienceId ?? null);
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      }
-    } finally {
-      setSavingAudience(false);
-    }
-  }
-
-  async function deleteAudience() {
-    if (!selectedAudience) {
-      return;
-    }
-
-    setDeletingAudience(true);
-
-    try {
-      const response = await fetch("/api/test-audiences/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ audienceId: selectedAudience.id }),
-      });
-
-      const result = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-      };
-
-      if (!response.ok) {
-        throw new Error(result.error || "Unable to delete live audience");
-      }
-
-      message.success("Live audience deleted");
-      await loadAudiences(null);
-    } catch (error) {
-      message.error(
-        error instanceof Error ? error.message : "Unable to delete live audience",
-      );
-    } finally {
-      setDeletingAudience(false);
-    }
-  }
-
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Row align="middle" justify="space-between" gutter={[16, 16]}>
@@ -315,35 +190,13 @@ export default function LiveAudiencesPage() {
               Live Audiences
             </Typography.Title>
             <Typography.Text type="secondary">
-              Manage saved live outreach groups such as Hosts, Circle, and Guest Pass.
+              Dynamic live audiences populated from `DATABASE_URL_AHANGAMA_PASS` using circle, hospo, and pass_guests members.
             </Typography.Text>
           </Space>
         </Col>
 
         <Col>
           <Space>
-            <Button icon={<PlusOutlined />} onClick={openCreateModal}>
-              Add live audience
-            </Button>
-            <Button
-              icon={<EditOutlined />}
-              disabled={!selectedAudience}
-              onClick={openEditModal}
-            >
-              Edit
-            </Button>
-            <Popconfirm
-              title="Delete live audience?"
-              description="This removes the audience and its member links. Guests stay in the database."
-              okText="Delete"
-              okButtonProps={{ danger: true, loading: deletingAudience }}
-              onConfirm={() => void deleteAudience()}
-              disabled={!selectedAudience}
-            >
-              <Button danger icon={<DeleteOutlined />} disabled={!selectedAudience}>
-                Delete
-              </Button>
-            </Popconfirm>
             <Button
               icon={<ReloadOutlined />}
               loading={loadingAudiences}
@@ -433,6 +286,9 @@ export default function LiveAudiencesPage() {
                     ? members.map(memberToLabel).join(", ")
                     : "-"}
                 </Descriptions.Item>
+                <Descriptions.Item label="Source">
+                  DATABASE_URL_AHANGAMA_PASS
+                </Descriptions.Item>
               </Descriptions>
             ) : (
               <Empty description="No live audiences found" />
@@ -451,101 +307,6 @@ export default function LiveAudiencesPage() {
           locale={{ emptyText: "Select a live audience to view its members" }}
         />
       </Card>
-
-      <Modal
-        title={editingAudienceId ? "Edit live audience" : "Add live audience"}
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        onOk={() => void saveAudience()}
-        okText={editingAudienceId ? "Save changes" : "Create audience"}
-        confirmLoading={savingAudience}
-        width={900}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical" initialValues={{ active: true, members: [] }}>
-          <Form.Item name="audienceId" hidden>
-            <Input />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Audience name"
-                name="name"
-                rules={[{ required: true, message: "Enter an audience name" }]}
-              >
-                <Input placeholder="Hosts, Circle, Guest Pass" />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item label="Description" name="description">
-                <Input placeholder="Live outreach segment" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="Active" name="active" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-
-          <Typography.Title level={5}>Members</Typography.Title>
-
-          <Form.List name="members">
-            {(fields, { add, remove }) => (
-              <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                {fields.map((field, index) => (
-                  <Card
-                    key={field.key}
-                    size="small"
-                    title={`Member ${index + 1}`}
-                    extra={
-                      <Button danger type="text" onClick={() => remove(field.name)}>
-                        Remove
-                      </Button>
-                    }
-                  >
-                    <Row gutter={12}>
-                      <Col xs={24} md={6}>
-                        <Form.Item label="First name" name={[field.name, "firstName"]}>
-                          <Input placeholder="Viji" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={6}>
-                        <Form.Item label="Last name" name={[field.name, "lastName"]}>
-                          <Input placeholder="Pragnaratn" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item
-                          label="Phone number"
-                          name={[field.name, "phoneNumber"]}
-                          rules={[{ required: true, message: "Enter a phone number" }]}
-                        >
-                          <Input placeholder="+94 77 662 0320" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={4}>
-                        <Form.Item label="Country" name={[field.name, "countryCode"]}>
-                          <Input placeholder="LK" maxLength={2} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </Card>
-                ))}
-
-                <Button
-                  type="dashed"
-                  icon={<PlusOutlined />}
-                  onClick={() => add({ firstName: "", lastName: "", phoneNumber: "", countryCode: "LK" })}
-                >
-                  Add number
-                </Button>
-              </Space>
-            )}
-          </Form.List>
-        </Form>
-      </Modal>
     </Space>
   );
 }

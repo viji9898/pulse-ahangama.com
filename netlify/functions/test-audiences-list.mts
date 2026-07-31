@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { count, desc, eq } from "drizzle-orm";
 import { testAudienceMembers, testAudiences } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
+import { listLiveAudiences } from "./_shared/live-audiences.js";
 
 function parseAudienceKind(value: string | null): "test" | "live" {
   return value === "live" ? "live" : "test";
@@ -18,6 +19,11 @@ export default async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
   const audienceKind = parseAudienceKind(url.searchParams.get("kind"));
 
+  if (audienceKind === "live") {
+    const audiences = await listLiveAudiences();
+    return Response.json({ audiences });
+  }
+
   const results = await db
     .select({
       id: testAudiences.id,
@@ -33,7 +39,13 @@ export default async (request: Request): Promise<Response> => {
       eq(testAudienceMembers.audienceId, testAudiences.id),
     )
     .where(eq(testAudiences.kind, audienceKind))
-    .groupBy(testAudiences.id)
+    .groupBy(
+      testAudiences.id,
+      testAudiences.name,
+      testAudiences.description,
+      testAudiences.active,
+      testAudiences.createdAt,
+    )
     .orderBy(desc(testAudiences.createdAt));
 
   return Response.json({ audiences: results });

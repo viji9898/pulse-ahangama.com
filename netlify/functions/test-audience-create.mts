@@ -82,88 +82,84 @@ export default async (request: Request): Promise<Response> => {
     );
   }
 
-  const audience = await db.transaction(async (tx) => {
-    let savedAudience;
+  let audience;
 
-    if (input.audienceId) {
-      const [updated] = await tx
-        .update(testAudiences)
-        .set({
-          name,
-          description: input.description?.trim() || null,
-          active: input.active ?? true,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(testAudiences.id, input.audienceId),
-            eq(testAudiences.kind, audienceKind),
-          ),
-        )
-        .returning();
+  if (input.audienceId) {
+    const [updated] = await db
+      .update(testAudiences)
+      .set({
+        name,
+        description: input.description?.trim() || null,
+        active: input.active ?? true,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(testAudiences.id, input.audienceId),
+          eq(testAudiences.kind, audienceKind),
+        ),
+      )
+      .returning();
 
-      if (!updated) {
-        throw new Error("Test audience not found");
-      }
-
-      await tx
-        .delete(testAudienceMembers)
-        .where(eq(testAudienceMembers.audienceId, input.audienceId));
-
-      savedAudience = updated;
-    } else {
-      [savedAudience] = await tx
-        .insert(testAudiences)
-        .values({
-          kind: audienceKind,
-          name,
-          description: input.description?.trim() || null,
-          active: input.active ?? true,
-        })
-        .returning();
+    if (!updated) {
+      throw new Error("Test audience not found");
     }
 
-    const guestIds: string[] = [];
+    await db
+      .delete(testAudienceMembers)
+      .where(eq(testAudienceMembers.audienceId, input.audienceId));
 
-    for (const member of uniqueMembers) {
-      const [guest] = await tx
-        .insert(guests)
-        .values({
+    audience = updated;
+  } else {
+    [audience] = await db
+      .insert(testAudiences)
+      .values({
+        kind: audienceKind,
+        name,
+        description: input.description?.trim() || null,
+        active: input.active ?? true,
+      })
+      .returning();
+  }
+
+  const guestIds: string[] = [];
+
+  for (const member of uniqueMembers) {
+    const [guest] = await db
+      .insert(guests)
+      .values({
+        firstName: member.firstName,
+        lastName: member.lastName,
+        phoneNumber: member.phoneNumber,
+        normalizedPhoneNumber: member.normalizedPhoneNumber,
+        countryCode: member.countryCode,
+        whatsappOptIn: true,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: guests.normalizedPhoneNumber,
+        set: {
           firstName: member.firstName,
           lastName: member.lastName,
           phoneNumber: member.phoneNumber,
-          normalizedPhoneNumber: member.normalizedPhoneNumber,
           countryCode: member.countryCode,
           whatsappOptIn: true,
           updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: guests.normalizedPhoneNumber,
-          set: {
-            firstName: member.firstName,
-            lastName: member.lastName,
-            phoneNumber: member.phoneNumber,
-            countryCode: member.countryCode,
-            whatsappOptIn: true,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
+        },
+      })
+      .returning();
 
-      guestIds.push(guest.id);
-    }
+    guestIds.push(guest.id);
+  }
 
-    if (guestIds.length > 0) {
-      await tx.insert(testAudienceMembers).values(
-        guestIds.map((guestId) => ({
-          audienceId: savedAudience.id,
-          guestId,
-        })),
-      );
-    }
-
-    return savedAudience;
-  });
+  if (guestIds.length > 0) {
+    await db.insert(testAudienceMembers).values(
+      guestIds.map((guestId) => ({
+        audienceId: audience.id,
+        guestId,
+      })),
+    );
+  }
 
   return Response.json(
     {
