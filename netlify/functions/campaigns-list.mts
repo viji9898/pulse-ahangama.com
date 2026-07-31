@@ -22,6 +22,7 @@ export default async (request: Request): Promise<Response> => {
         status: campaigns.status,
         whatsappSenderKey: campaigns.whatsappSenderKey,
         templateName: campaigns.templateName,
+        audienceDefinition: campaigns.audienceDefinition,
         recipientCount: campaigns.recipientCount,
         estimatedMetaCostUsd: campaigns.estimatedMetaCostUsd,
         venuePriceUsd: campaigns.venuePriceUsd,

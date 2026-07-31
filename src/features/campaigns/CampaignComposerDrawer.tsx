@@ -78,6 +78,15 @@ type ContentPreviewResponse = {
 
 type WhatsAppSenderKey = "ahangama" | "ahangama_pass";
 
+const AHANGAMA_PASS_FEATURE_ARTICLE_CONTENT = {
+  type: "feature_article" as const,
+  templateVariant: "qs_feature_article_ahangama_pass" as const,
+  articleTitle: "Inside Ahangama Circle",
+  description:
+    "A community bringing together founders, creatives, hospitality leaders and local businesses shaping the future of Sri Lanka's south coast.",
+  articleUrl: "https://ahangama.com/inside-the-launch-of-ahangama-circle/",
+};
+
 const countryLabels: Record<string, string> = {
   LK: "Sri Lanka",
   GB: "United Kingdom",
@@ -99,7 +108,8 @@ type CampaignFormValues = {
     | "feature_event_soul_therapy"
     | "venue_feature"
     | "wellness_pick"
-    | "feature_article";
+    | "feature_article"
+    | "qs_feature_article_ahangama_pass";
   content: Record<string, unknown>;
   interests?: string[];
   accommodationName?: string;
@@ -212,6 +222,10 @@ export default function CampaignComposerDrawer({
   }
 
   function buildContent(values: CampaignFormValues) {
+    if (values.campaignType === "qs_feature_article_ahangama_pass") {
+      return AHANGAMA_PASS_FEATURE_ARTICLE_CONTENT;
+    }
+
     return {
       ...values.content,
       type: values.campaignType,
@@ -429,9 +443,16 @@ export default function CampaignComposerDrawer({
                 label: "Feature Article",
                 value: "feature_article",
               },
+              {
+                label: "Feature Article · Ahangama Pass",
+                value: "qs_feature_article_ahangama_pass",
+              },
             ]}
-            onChange={() => {
+            onChange={(value) => {
               form.setFieldValue("content", {});
+              if (value === "qs_feature_article_ahangama_pass") {
+                form.setFieldValue("whatsappSenderKey", "ahangama_pass");
+              }
               setPreview(null);
               setContentPreview(null);
             }}
@@ -472,6 +493,22 @@ export default function CampaignComposerDrawer({
         {campaignType === "wellness_pick" && <WellnessPickForm />}
 
         {campaignType === "feature_article" && <FeatureArticleForm />}
+
+        {campaignType === "qs_feature_article_ahangama_pass" && (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="Article">
+              Inside Ahangama Circle
+            </Descriptions.Item>
+
+            <Descriptions.Item label="Message">
+              Fixed approved Ahangama Pass feature article copy with personalized contact name
+            </Descriptions.Item>
+
+            <Descriptions.Item label="Actions">
+              Read Story · I'd love to attend the next event.
+            </Descriptions.Item>
+          </Descriptions>
+        )}
 
         <Divider />
 

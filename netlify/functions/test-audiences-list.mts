@@ -27,6 +27,7 @@ export default async (request: Request): Promise<Response> => {
   const results = await db
     .select({
       id: testAudiences.id,
+      kind: testAudiences.kind,
       name: testAudiences.name,
       description: testAudiences.description,
       active: testAudiences.active,
@@ -41,6 +42,7 @@ export default async (request: Request): Promise<Response> => {
     .where(eq(testAudiences.kind, audienceKind))
     .groupBy(
       testAudiences.id,
+      testAudiences.kind,
       testAudiences.name,
       testAudiences.description,
       testAudiences.active,

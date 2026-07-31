@@ -33,6 +33,9 @@ type Campaign = {
   channel: string;
   whatsappSenderKey: WhatsAppSenderKey;
   templateName: string | null;
+  audienceDefinition?: {
+    audienceIds?: string[];
+  };
   recipientCount: number;
   estimatedMetaCostUsd: string;
   venuePriceUsd: string;
@@ -43,6 +46,7 @@ type Campaign = {
 
 type TestAudience = {
   id: string;
+  kind: "test" | "live";
   name: string;
   description: string | null;
   active: boolean;
@@ -76,12 +80,14 @@ export default function CampaignsPage() {
   );
   const [testAudiences, setTestAudiences] = useState<TestAudience[]>([]);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string>();
+  const [selectedCampaignAudienceIds, setSelectedCampaignAudienceIds] = useState<string[]>([]);
   const [previewMembers, setPreviewMembers] = useState<TestAudienceMember[]>(
     [],
   );
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
   const [previewingMembers, setPreviewingMembers] = useState(false);
+  const [updatingAudience, setUpdatingAudience] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [scheduling, setScheduling] = useState(false);
 
@@ -106,24 +112,74 @@ export default function CampaignsPage() {
   }
 
   async function loadTestAudiences() {
-    const response = await fetch("/api/test-audiences");
+    const [testResponse, liveResponse] = await Promise.all([
+      fetch("/api/test-audiences"),
+      fetch("/api/test-audiences?kind=live"),
+    ]);
 
-    if (!response.ok) {
-      throw new Error("Unable to load test audiences");
+    if (!testResponse.ok || !liveResponse.ok) {
+      throw new Error("Unable to load audiences");
     }
 
-    const data = (await response.json()) as {
-      audiences: TestAudience[];
-    };
+    const [testData, liveData] = (await Promise.all([
+      testResponse.json(),
+      liveResponse.json(),
+    ])) as [{ audiences: TestAudience[] }, { audiences: TestAudience[] }];
 
-    setTestAudiences(data.audiences);
+    const allAudiences = [...testData.audiences, ...liveData.audiences];
+    const testOnlyAudiences = allAudiences.filter((audience) => audience.kind === "test");
+
+    setTestAudiences(allAudiences);
 
     const defaultAudience =
-      data.audiences.find((audience) => audience.name === "Internal Test") ??
-      data.audiences[0];
+      testOnlyAudiences.find((audience) => audience.name === "Internal Test") ??
+      testOnlyAudiences[0];
 
     if (defaultAudience) {
       setSelectedAudienceId(defaultAudience.id);
+    }
+  }
+
+  async function updateCampaignAudience() {
+    if (!selectedCampaign) return;
+
+    setUpdatingAudience(true);
+
+    try {
+      const response = await fetch("/api/campaigns/update-audience", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          campaignId: selectedCampaign.id,
+          audience: {
+            audienceIds: selectedCampaignAudienceIds,
+          },
+        }),
+      });
+
+      const result = (await response.json()) as {
+        error?: string;
+        campaign?: Campaign;
+      };
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to update campaign audience");
+      }
+
+      message.success("Campaign audience updated");
+      setTestResult(null);
+      await loadCampaigns();
+      if (result.campaign) {
+        setSelectedCampaign(result.campaign);
+      }
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "Unable to update campaign audience",
+      );
+    } finally {
+      setUpdatingAudience(false);
     }
   }
 
@@ -245,6 +301,37 @@ export default function CampaignsPage() {
       });
     });
   }, []);
+
+  useEffect(() => {
+    if (!selectedCampaign) {
+      setSelectedCampaignAudienceIds([]);
+      return;
+    }
+
+    setSelectedCampaignAudienceIds(selectedCampaign.audienceDefinition?.audienceIds ?? []);
+  }, [selectedCampaign]);
+
+  const testOnlyAudiences = testAudiences.filter((audience) => audience.kind === "test");
+  const selectableAudienceOptions = [
+    {
+      label: "Live audiences",
+      options: testAudiences
+        .filter((audience) => audience.kind === "live")
+        .map((audience) => ({
+          label: `${audience.name} (${audience.memberCount})`,
+          value: audience.id,
+        })),
+    },
+    {
+      label: "Test audiences",
+      options: testAudiences
+        .filter((audience) => audience.kind === "test")
+        .map((audience) => ({
+          label: `${audience.name} (${audience.memberCount})`,
+          value: audience.id,
+        })),
+    },
+  ];
 
   const columns: ColumnsType<Campaign> = [
     {
@@ -448,7 +535,7 @@ export default function CampaignsPage() {
                 value={selectedAudienceId}
                 style={{ width: "100%" }}
                 placeholder="Select test audience"
-                options={testAudiences.map((audience) => ({
+                options={testOnlyAudiences.map((audience) => ({
                   label: `${audience.name} (${audience.memberCount})`,
                   value: audience.id,
                 }))}
@@ -477,6 +564,36 @@ export default function CampaignsPage() {
                   Send test
                 </Button>
               </Space>
+            </Space>
+
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Typography.Text strong>Campaign audience</Typography.Text>
+              <Select
+                mode="multiple"
+                value={selectedCampaignAudienceIds}
+                style={{ width: "100%" }}
+                placeholder="Select live or test audiences for this campaign"
+                options={selectableAudienceOptions}
+                onChange={(value) => setSelectedCampaignAudienceIds(value)}
+                disabled={selectedCampaign.status === "sending" || selectedCampaign.status === "completed" || selectedCampaign.status === "cancelled"}
+              />
+
+              <Button
+                loading={updatingAudience}
+                disabled={
+                  selectedCampaign.status === "sending" ||
+                  selectedCampaign.status === "completed" ||
+                  selectedCampaign.status === "cancelled" ||
+                  selectedCampaignAudienceIds.length === 0
+                }
+                onClick={() => void updateCampaignAudience()}
+              >
+                Update campaign audience
+              </Button>
+
+              <Typography.Text type="secondary">
+                Use this for older campaigns before sending. It rebuilds the recipient snapshot with live audiences and removes duplicate phone numbers across all selected audiences.
+              </Typography.Text>
             </Space>
 
             {previewMembers.length > 0 && (

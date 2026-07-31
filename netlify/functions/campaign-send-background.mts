@@ -11,6 +11,7 @@ import {
   getTemplate,
   getTemplateHeaderExampleImageUrl,
 } from "./_shared/meta-templates.js";
+import { triggerCampaignSendBackground } from "./_shared/internal-api.js";
 import {
   buildCampaignTemplate,
   getFeatureArticleButtonUrl,
@@ -300,15 +301,8 @@ export default async (request: Request): Promise<Response> => {
     })
     .where(eq(campaigns.id, campaign.id));
 
-  if (remaining.length && process.env.URL && process.env.INTERNAL_API_SECRET) {
-    await fetch(`${process.env.URL}/.netlify/functions/campaign-send-background`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
-      },
-      body: JSON.stringify({ campaignId: campaign.id }),
-    });
+  if (remaining.length) {
+    await triggerCampaignSendBackground(campaign.id);
   }
 
   return Response.json({ ok: true, dispatched: recipients.length, remaining: remaining.length });

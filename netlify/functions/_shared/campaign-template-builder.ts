@@ -47,6 +47,23 @@ function cleanLine(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function buildAhangamaPassFeatureArticlePreview(): string {
+  return [
+    "Hi there 👋🏾",
+    "",
+    "Inside Ahangama Circle",
+    "",
+    "A community bringing together founders, creatives, hospitality leaders and local businesses shaping the future of Sri Lanka's south coast.",
+    "",
+    "Inside the story, discover how Ahangama Circle began, meet the people behind it, and see what's planned next.",
+    "",
+    "Read the full story below.",
+    "",
+    "Read Story: https://ahangama.com/inside-the-launch-of-ahangama-circle/",
+    "I'd love to attend the next event.",
+  ].join("\n");
+}
+
 export function getFeatureArticleButtonUrl(articleUrl: string): string {
   const url = new URL(articleUrl);
 
@@ -241,6 +258,18 @@ export function buildCampaignTemplate(
       };
 
     case "feature_article": {
+      if (content.templateVariant === "qs_feature_article_ahangama_pass") {
+        return {
+          templateName: "qs_feature_article_ahangama_pass",
+          languageCode: "en",
+          headerImageUrl: AHANGAMA_PASS_FEATURE_ARTICLE_HEADER_IMAGE_URL,
+          variables: {
+            contact_name: "there",
+          },
+          preview: buildAhangamaPassFeatureArticlePreview(),
+        };
+      }
+
       const articleTitle = cleanLine(content.articleTitle);
       const description = cleanLine(content.description);
       const articleUrl = new URL(content.articleUrl);

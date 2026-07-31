@@ -44,6 +44,7 @@ export type CampaignContent =
     }
   | {
       type: "feature_article";
+      templateVariant?: "qs_feature_article_ahangama_pass";
       articleTitle: string;
       description: string;
       articleUrl: string;

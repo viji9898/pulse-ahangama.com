@@ -2,6 +2,7 @@ import type { Config } from "@netlify/functions";
 import { and, eq, lte } from "drizzle-orm";
 import { campaigns } from "../../db/schema/index.js";
 import { db } from "./_shared/db.js";
+import { triggerCampaignSendBackground } from "./_shared/internal-api.js";
 
 export default async (): Promise<Response> => {
   const dueCampaigns = await db
@@ -16,7 +17,7 @@ export default async (): Promise<Response> => {
     .limit(20);
 
   for (const campaign of dueCampaigns) {
-    await db
+    const [claimedCampaign] = await db
       .update(campaigns)
       .set({
         status: "sending",
@@ -25,21 +26,27 @@ export default async (): Promise<Response> => {
       })
       .where(
         and(eq(campaigns.id, campaign.id), eq(campaigns.status, "scheduled")),
-      );
+      )
+      .returning({ id: campaigns.id });
 
-    await fetch(
-      `${process.env.URL}/.netlify/functions/campaign-send-background`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
-        },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-        }),
-      },
-    );
+    if (!claimedCampaign) {
+      continue;
+    }
+
+    try {
+      await triggerCampaignSendBackground(campaign.id);
+    } catch (error) {
+      await db
+        .update(campaigns)
+        .set({
+          status: "scheduled",
+          startedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(campaigns.id, campaign.id), eq(campaigns.status, "sending")));
+
+      throw error;
+    }
   }
 
   return Response.json({

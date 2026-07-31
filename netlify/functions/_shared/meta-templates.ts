@@ -1,5 +1,7 @@
 import { env } from "./env.js";
 
+const TEMPLATE_FETCH_RETRY_DELAYS_MS = [250, 750] as const;
+
 export type MetaTemplate = {
   id: string;
   name: string;
@@ -22,6 +24,38 @@ type MetaTemplateResponse = {
   };
 };
 
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+function shouldRetryTemplateRequest(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return true;
+  }
+
+  if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return true;
+    }
+
+    if (/HTTP 429|HTTP 5\d\d|fetch failed/i.test(error.message)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 export async function getTemplate(
   name: string,
   language: string,
@@ -33,16 +67,51 @@ export async function getTemplate(
   url.searchParams.set("name", name);
   url.searchParams.set("fields", "id,name,language,status,category,components");
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${env.whatsappAccessToken}`,
-    },
-  });
+  let result: MetaTemplateResponse | null = null;
+  let lastError: unknown = null;
 
-  const result = (await response.json()) as MetaTemplateResponse;
+  for (let attempt = 0; attempt <= TEMPLATE_FETCH_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${env.whatsappAccessToken}`,
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
 
-  if (!response.ok) {
-    throw new Error(result.error?.message || "Unable to load Meta template");
+      const responseText = await response.text();
+
+      result = responseText
+        ? (JSON.parse(responseText) as MetaTemplateResponse)
+        : {};
+
+      if (!response.ok) {
+        throw new Error(
+          result.error?.message || `Unable to load Meta template (HTTP ${response.status})`,
+        );
+      }
+
+      break;
+    } catch (error) {
+      lastError = error;
+
+      if (
+        attempt === TEMPLATE_FETCH_RETRY_DELAYS_MS.length ||
+        !shouldRetryTemplateRequest(error)
+      ) {
+        throw new Error(
+          `Unable to load Meta template ${name}/${language}: ${getErrorMessage(error)}`,
+        );
+      }
+
+      await wait(TEMPLATE_FETCH_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  if (!result) {
+    throw new Error(
+      `Unable to load Meta template ${name}/${language}: ${getErrorMessage(lastError)}`,
+    );
   }
 
   return (
